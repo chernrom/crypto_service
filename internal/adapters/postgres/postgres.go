@@ -10,8 +10,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-const connString = "postgres://postgres:postgres@localhost:5432/app?sslmode=disable"
-
 type PostgresStorage struct {
 	pool *pgxpool.Pool
 	once sync.Once
@@ -36,6 +34,7 @@ func NewPostgresStorage(ctx context.Context, connString string) (*PostgresStorag
 	}, nil
 }
 
+// если
 func (s *PostgresStorage) Close() {
 	s.once.Do(
 		func() {
@@ -71,7 +70,7 @@ func (s *PostgresStorage) Store(ctx context.Context, coins []*entities.Coin) err
 
 	_, err := s.pool.CopyFrom(
 		ctx,
-		pgx.Identifier{"crypto", "crypto.coins"},
+		pgx.Identifier{"crypto", "coins"},
 		[]string{"title", "cost", "actual_at"},
 		pgx.CopyFromRows(inputRows),
 	)
