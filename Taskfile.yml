@@ -1,0 +1,37 @@
+version: '3'
+
+tasks:
+  test:
+    desc: run all crypto_service tests
+    cmds:
+      - go test ./...
+
+  run:
+    desc: run main.go
+    cmds:
+      - go run cmd/app/main.go
+
+  up:
+    desc: docker compose up
+    cmds:
+      - docker compose up -d
+
+  down:
+    desc: docker compose down
+    cmds:
+      - docker compose down
+
+  storage:up:
+    desc: db migration up
+    cmds:
+      - migrate -source file://migrations/postgres -database postgres://postgres:postgres@localhost:5432/app?sslmode=disable up
+
+  storage:down:
+    desc: db migration down
+    cmds:
+      - migrate -source file://migrations/postgres -database postgres://postgres:postgres@localhost:5432/app?sslmode=disable down
+
+  storage:drop:
+    desc: db migration drop
+    cmds:
+      - migrate -source file://migrations/postgres -database postgres://postgres:postgres@localhost:5432/app?sslmode=disable drop

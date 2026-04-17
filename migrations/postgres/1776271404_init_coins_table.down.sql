@@ -1,0 +1,7 @@
+BEGIN;
+
+DROP TABLE IF EXISTS crypto.coins;
+
+DROP SCHEMA IF EXISTS crypto;
+
+END;
