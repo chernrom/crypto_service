@@ -71,7 +71,7 @@ func (s *PostgresStorage) Store(ctx context.Context, coins []*entities.Coin) err
 
 	_, err := s.pool.CopyFrom(
 		ctx,
-		pgx.Identifier{"crypto", "coins"},
+		pgx.Identifier{"crypto", "crypto.coins"},
 		[]string{"title", "cost", "actual_at"},
 		pgx.CopyFromRows(inputRows),
 	)

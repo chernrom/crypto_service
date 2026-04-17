@@ -4,14 +4,9 @@ import (
 	"context"
 	"crypto_service/internal/adapters/provider/coingecko"
 	"fmt"
-	"log"
 	"log/slog"
 	"os"
-
-	"github.com/jackc/pgx/v5/pgxpool"
 )
-
-
 
 func main() {
 
