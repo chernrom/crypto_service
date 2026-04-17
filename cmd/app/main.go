@@ -11,15 +11,9 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-const connStr = "postgres://postgres:postgres@localhost:5432/app?sslmode=disable"
+
 
 func main() {
-	var ctx context.Context
-	pool, err := pgxpool.New(ctx, connStr)
-	if err != nil {
-		log.Fatalf("Unable to connect to database: %v", err)
-	}
-	defer pool.Close()
 
 	c, err := coingecko.NewClient("CG-oBGrtsF1bRVUg3RFoWw8uf16")
 	if err != nil {

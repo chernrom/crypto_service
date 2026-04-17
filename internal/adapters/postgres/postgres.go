@@ -3,13 +3,14 @@ package postgres
 import (
 	"context"
 	"crypto_service/internal/entities"
-	"strings"
 	"sync"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pkg/errors"
 )
+
+const connString = "postgres://postgres:postgres@localhost:5432/app?sslmode=disable"
 
 type PostgresStorage struct {
 	pool *pgxpool.Pool
@@ -59,23 +60,25 @@ func (s *PostgresStorage) GetAllTitles(ctx context.Context) ([]string, error) {
 }
 
 func (s *PostgresStorage) Store(ctx context.Context, coins []*entities.Coin) error {
-	rowsInLine := 3
-	values := make([]string,0)
-	args := make([]any,0,len(coins)*rowsInLine)
-
-	for i, coin := range coins{
-		args = append(args, coin.Title,coin.Cost,coin.ActualAt)
-		values = append(values, "($1, $2, $3)")
-		strings.Join(values,", ")
+	if len(coins) == 0 {
+		return nil
 	}
 
-	
+	inputRows := [][]any{}
+	for _, coin := range coins {
+		inputRows = append(inputRows, []any{coin.Title, coin.Cost, coin.ActualAt})
+	}
 
-	query := `
-		INSERT INTO crypto.coins (title, cost, actual_at)
-		VALUES ($1, $2, $3)
-	`
-	store, err := s.pool.Exec(ctx, query, ...args)
+	_, err := s.pool.CopyFrom(
+		ctx,
+		pgx.Identifier{"crypto", "coins"},
+		[]string{"title", "cost", "actual_at"},
+		pgx.CopyFromRows(inputRows),
+	)
+
+	if err != nil {
+		return errors.Wrap(err, "copy from error")
+	}
 
 	return nil
 }
