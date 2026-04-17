@@ -34,7 +34,6 @@ func NewPostgresStorage(ctx context.Context, connString string) (*PostgresStorag
 	}, nil
 }
 
-// если
 func (s *PostgresStorage) Close() {
 	s.once.Do(
 		func() {
@@ -70,7 +69,7 @@ func (s *PostgresStorage) Store(ctx context.Context, coins []*entities.Coin) err
 
 	copyFromResult, err := s.pool.CopyFrom(
 		ctx,
-		pgx.Identifier{"crypto", "coins"},
+		pgx.Identifier{"crypto", "coins"}, //вот тут вопрос crypto.coins или coins?
 		[]string{"title", "cost", "actual_at"},
 		pgx.CopyFromRows(inputRows),
 	)
@@ -82,4 +81,36 @@ func (s *PostgresStorage) Store(ctx context.Context, coins []*entities.Coin) err
 	}
 
 	return nil
+}
+
+func (s *PostgresStorage) GetCoinsByTitles(ctx context.Context, titles []string) ([]*entities.Coin, error) {
+	if len(titles) == 0 {
+		return []*entities.Coin{}, nil
+	}
+
+	rows, err := s.pool.Query(ctx, "SELECT title, cost, actual_at FROM crypto.coins WHERE title = ANY($1);", titles)
+	if err != nil {
+		return nil, errors.Wrap(err, "query titles error")
+	}
+	defer rows.Close()
+
+	coinPointers, err := pgx.CollectRows(rows, pgx.RowToAddrOfStructByPos[entities.Coin])
+	if err != nil {
+		return nil, errors.Wrap(err, "collect rows error")
+	}
+
+	return coinPointers, nil
+}
+
+func (s *PostgresStorage) GetAggregatedCoins(ctx context.Context, titles []string, aggregationType string) ([]*entities.Coin, error) {
+	if len(titles) == 0 {
+		return nil, errors.New("titles is empty")
+	}
+
+	if aggregationType == "" {
+		return nil, errors.New("aggregation type is empty")
+	}
+
+	return nil, nil
+
 }

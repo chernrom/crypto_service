@@ -10,6 +10,6 @@ import (
 type Storage interface {
 	Store(ctx context.Context, coins []*entities.Coin) error
 	GetAllTitles(ctx context.Context) ([]string, error)
-	GetLastCoins(ctx context.Context, titles []string) ([]*entities.Coin, error)
+	GetCoinsByTitles(ctx context.Context, titles []string) ([]*entities.Coin, error)
 	GetAggregatedCoins(ctx context.Context, titles []string, aggregationType string) ([]*entities.Coin, error)
 }
