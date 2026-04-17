@@ -68,13 +68,15 @@ func (s *PostgresStorage) Store(ctx context.Context, coins []*entities.Coin) err
 		inputRows = append(inputRows, []any{coin.Title, coin.Cost, coin.ActualAt})
 	}
 
-	_, err := s.pool.CopyFrom(
+	copyFromResult, err := s.pool.CopyFrom(
 		ctx,
 		pgx.Identifier{"crypto", "coins"},
 		[]string{"title", "cost", "actual_at"},
 		pgx.CopyFromRows(inputRows),
 	)
-
+	if int(copyFromResult) != len(coins) {
+		return errors.Errorf("expected to insert %d rows, got %d", len(coins), copyFromResult)
+	}
 	if err != nil {
 		return errors.Wrap(err, "copy from error")
 	}
