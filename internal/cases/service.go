@@ -62,7 +62,7 @@ func (s *Service) GetCoins(ctx context.Context, titles []string) ([]*entities.Co
 		return nil, errors.Wrap(err, "ensure coins exist failure")
 	}
 
-	coins, err := s.storage.GetLastCoins(ctx, titles)
+	coins, err := s.storage.GetCoinsByTitles(ctx, titles)
 	if err != nil {
 		return nil, errors.Wrap(err, "get last coins failure")
 	}
