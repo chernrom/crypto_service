@@ -11,39 +11,38 @@ import (
 )
 
 type PostgresStorage struct {
-	pool *pgxpool.Pool
-	once sync.Once
+	pool     *pgxpool.Pool
+	once     sync.Once
+	cancelFn context.CancelFunc
 }
 
-func NewPostgresStorage(ctx context.Context, connString string) (*PostgresStorage, error) {
+func NewPostgresStorage(connString string) (*PostgresStorage, error) {
 	if connString == "" {
 		return nil, errors.Wrap(entities.ErrInvalidParam, "empty connect field")
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+
 	pool, err := pgxpool.New(ctx, connString)
 	if err != nil {
-		return nil, errors.Wrap(err, "pool creation error")
-	}
-	if err := pool.Ping(ctx); err != nil {
-		pool.Close()
-		return nil, errors.Wrap(entities.ErrInternal, "pgxpool ping error")
+		cancel()
+		return nil, errors.Wrapf(entities.ErrInternal, "pool creation error: %v", err)
 	}
 
 	return &PostgresStorage{
-		pool: pool,
+		pool:     pool,
+		cancelFn: cancel,
 	}, nil
 }
 
 func (s *PostgresStorage) Close() {
-	s.once.Do(
-		func() {
-			s.pool.Close()
-		},
-	)
+	s.once.Do(func() {
+		s.cancelFn()
+	})
 }
 
 func (s *PostgresStorage) GetAllTitles(ctx context.Context) ([]string, error) {
-	rows, err := s.pool.Query(ctx, "SELECT title FROM crypto.coins;")
+	rows, err := s.pool.Query(ctx, "SELECT DISTINCT title FROM crypto.coins;")
 	if err != nil {
 		return nil, errors.Wrap(err, "query titles error")
 	}
@@ -58,26 +57,22 @@ func (s *PostgresStorage) GetAllTitles(ctx context.Context) ([]string, error) {
 }
 
 func (s *PostgresStorage) Store(ctx context.Context, coins []*entities.Coin) error {
-	if len(coins) == 0 {
-		return nil
-	}
+	query := `INSERT INTO crypto.coins (title, cost, actual_at) VALUES ($1, $2, $3)`
+	batch := &pgx.Batch{}
 
-	inputRows := [][]any{}
 	for _, coin := range coins {
-		inputRows = append(inputRows, []any{coin.Title, coin.Cost, coin.ActualAt})
+		batch.Queue(query, coin.Title(), coin.Cost(), coin.ActualAt())
 	}
 
-	copyFromResult, err := s.pool.CopyFrom(
-		ctx,
-		pgx.Identifier{"crypto", "coins"}, //вот тут вопрос crypto.coins или coins?
-		[]string{"title", "cost", "actual_at"},
-		pgx.CopyFromRows(inputRows),
-	)
-	if int(copyFromResult) != len(coins) {
-		return errors.Errorf("expected to insert %d rows, got %d", len(coins), copyFromResult)
+	batchRes := s.pool.SendBatch(ctx, batch)
+	for range coins {
+		if _, err := batchRes.Exec(); err != nil {
+			return errors.Wrapf(entities.ErrInternal, "batch error: %v", err)
+		}
 	}
-	if err != nil {
-		return errors.Wrap(err, "copy from error")
+
+	if err := batchRes.Close(); err != nil {
+		return errors.Wrapf(entities.ErrInternal, "batch close error: %v", err)
 	}
 
 	return nil
