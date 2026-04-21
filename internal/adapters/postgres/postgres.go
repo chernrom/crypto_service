@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto_service/internal/entities"
 	"sync"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -14,6 +15,12 @@ type PostgresStorage struct {
 	pool     *pgxpool.Pool
 	once     sync.Once
 	cancelFn context.CancelFunc
+}
+
+type coinRow struct {
+	Title    string
+	Cost     float64
+	ActualAt time.Time
 }
 
 func NewPostgresStorage(connString string) (*PostgresStorage, error) {
@@ -83,18 +90,28 @@ func (s *PostgresStorage) GetCoinsByTitles(ctx context.Context, titles []string)
 		return []*entities.Coin{}, nil
 	}
 
-	rows, err := s.pool.Query(ctx, "SELECT title, cost, actual_at FROM crypto.coins WHERE title = ANY($1);", titles)
+	rows, err := s.pool.Query(ctx, "SELECT DISTINCT ON (title) title, cost, actual_at FROM crypto.coins WHERE title = ANY($1) ORDER BY title, actual_at DESC;", titles) //подправить запрос
 	if err != nil {
 		return nil, errors.Wrap(err, "query titles error")
 	}
 	defer rows.Close()
 
-	coinPointers, err := pgx.CollectRows(rows, pgx.RowToAddrOfStructByPos[entities.Coin])
+	dtoList, err := pgx.CollectRows(rows, pgx.RowToAddrOfStructByName[coinRow])
 	if err != nil {
 		return nil, errors.Wrap(err, "collect rows error")
 	}
 
-	return coinPointers, nil
+	var coins []*entities.Coin
+	for _, dto := range dtoList {
+		entity, err := entities.NewCoin(dto.Title, dto.Cost, dto.ActualAt)
+		if err != nil {
+			return nil, err
+		}
+
+		coins = append(coins, entity)
+	}
+
+	return coins, nil
 }
 
 func (s *PostgresStorage) GetAggregatedCoins(ctx context.Context, titles []string, aggregationType string) ([]*entities.Coin, error) {

@@ -61,3 +61,40 @@ func Test_GetAllTitles(t *testing.T) {
 	require.ElementsMatch(t, []string{"btc", "eth"}, titles)
 
 }
+
+func Test_GetCoinsByTitles(t *testing.T) {
+	t.Parallel()
+
+	defer flushStorage(t)
+
+	btc1, err := entities.NewCoin("btc", 0.13, time.Now())
+	require.NoError(t, err)
+	btc2, err := entities.NewCoin("btc", 0.566, time.Now().Add(1*time.Second))
+	require.NoError(t, err)
+	eth1, err := entities.NewCoin("eth", 0.22, time.Now())
+	require.NoError(t, err)
+	eth2, err := entities.NewCoin("eth", 0.321, time.Now().Add(1*time.Second))
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	db := makeDb(t)
+	err = db.Store(ctx, []*entities.Coin{btc1, btc2, eth1, eth2})
+	require.NoError(t, err)
+
+	coins, err := db.GetCoinsByTitles(ctx, []string{btc1.Title(), btc2.Title(), eth1.Title(), eth2.Title()})
+	require.NoError(t, err)
+
+	var titles []string
+	for _, coin := range coins {
+		titles = append(titles, coin.Title())
+	}
+
+	require.Equal(t, 2, len(coins))
+	require.ElementsMatch(t, []string{"btc", "eth"}, titles)
+
+	var costs []float64
+	for _, c := range coins {
+		costs = append(costs, c.Cost())
+	}
+	require.ElementsMatch(t, []float64{0.566, 0.321}, costs)
+}
