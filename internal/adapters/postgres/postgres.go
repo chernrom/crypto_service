@@ -117,11 +117,11 @@ func (s *PostgresStorage) GetCoinsByTitles(ctx context.Context, titles []string)
 
 func (s *PostgresStorage) GetAggregatedCoins(ctx context.Context, titles []string, aggregationType string) ([]*entities.Coin, error) {
 	if len(titles) == 0 {
-		return nil, errors.New("titles is empty")
+		return []*entities.Coin{}, nil
 	}
 
 	if aggregationType == "" {
-		return nil, errors.New("aggregation type is empty")
+		return []*entities.Coin{}, nil
 	}
 
 	validAggs := map[string]string{
@@ -132,10 +132,10 @@ func (s *PostgresStorage) GetAggregatedCoins(ctx context.Context, titles []strin
 
 	sqlFunc, ok := validAggs[aggregationType]
 	if !ok {
-		return nil, fmt.Errorf("invalid aggregation type")
+		return nil, errors.New("invalid aggregation type")
 	}
 
-	query := fmt.Sprintf(`SELECT title, %s(cost)::float as cost FROM crypto.coins WHERE title = ANY($1)GROUP BY title`, sqlFunc)
+	query := fmt.Sprintf(`SELECT title, %s(cost)::float as cost FROM crypto.coins WHERE title = ANY($1) GROUP BY title`, sqlFunc)
 
 	rows, err := s.pool.Query(ctx, query, titles)
 	if err != nil {
