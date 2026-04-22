@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"crypto_service/internal/entities"
+	"fmt"
 	"sync"
 	"time"
 
@@ -17,7 +18,7 @@ type PostgresStorage struct {
 	cancelFn context.CancelFunc
 }
 
-type coinRow struct {
+type dtoCoinRow struct {
 	Title    string
 	Cost     float64
 	ActualAt time.Time
@@ -90,13 +91,13 @@ func (s *PostgresStorage) GetCoinsByTitles(ctx context.Context, titles []string)
 		return []*entities.Coin{}, nil
 	}
 
-	rows, err := s.pool.Query(ctx, "SELECT DISTINCT ON (title) title, cost, actual_at FROM crypto.coins WHERE title = ANY($1) ORDER BY title, actual_at DESC;", titles) //подправить запрос
+	rows, err := s.pool.Query(ctx, "SELECT DISTINCT ON (title) title, cost, actual_at FROM crypto.coins WHERE title = ANY($1) ORDER BY title, actual_at DESC;", titles)
 	if err != nil {
 		return nil, errors.Wrap(err, "query titles error")
 	}
 	defer rows.Close()
 
-	dtoList, err := pgx.CollectRows(rows, pgx.RowToAddrOfStructByName[coinRow])
+	dtoList, err := pgx.CollectRows(rows, pgx.RowToAddrOfStructByName[dtoCoinRow])
 	if err != nil {
 		return nil, errors.Wrap(err, "collect rows error")
 	}
@@ -123,6 +124,39 @@ func (s *PostgresStorage) GetAggregatedCoins(ctx context.Context, titles []strin
 		return nil, errors.New("aggregation type is empty")
 	}
 
-	return nil, nil
+	validAggs := map[string]string{
+		"avg": "AVG",
+		"max": "MAX",
+		"min": "MIN",
+	}
 
+	sqlFunc, ok := validAggs[aggregationType]
+	if !ok {
+		return nil, fmt.Errorf("invalid aggregation type")
+	}
+
+	query := fmt.Sprintf(`SELECT title, %s(cost)::float as cost FROM crypto.coins WHERE title = ANY($1)GROUP BY title`, sqlFunc)
+
+	rows, err := s.pool.Query(ctx, query, titles)
+	if err != nil {
+		return nil, errors.Wrap(err, "query titles error")
+	}
+	defer rows.Close()
+
+	dtoList, err := pgx.CollectRows(rows, pgx.RowToAddrOfStructByName[dtoCoinRow])
+	if err != nil {
+		return nil, errors.Wrap(err, "collect rows error")
+	}
+
+	var coins []*entities.Coin
+	for _, dto := range dtoList {
+		entity, err := entities.NewCoin(dto.Title, dto.Cost, time.Now())
+		if err != nil {
+			return nil, err
+		}
+
+		coins = append(coins, entity)
+	}
+
+	return coins, nil
 }
