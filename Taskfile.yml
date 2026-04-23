@@ -4,7 +4,7 @@ tasks:
   test:
     desc: run all crypto_service tests
     cmds:
-      - go test ./...
+      - go test -count=1 ./...
 
   run:
     desc: run main.go
@@ -21,12 +21,21 @@ tasks:
     cmds:
       - docker compose down
 
-  storage:up:
+  test_l1:
+    cmds:
+      - docker compose --profile L1 down -v
+      - docker compose --profile L1 up -d
+      - sleep 10
+      - task: migrate:up
+      - export $(grep -v '^#' .env | xargs) && go test -v -tags=TEST_L1 ./...
+      - docker compose --profile L1 down -v
+
+  migrate:up:
     desc: db migration up
     cmds:
       - migrate -source file://migrations/postgres -database postgres://postgres:postgres@localhost:5432/app?sslmode=disable up
 
-  storage:down:
+  migrate:down:
     desc: db migration down
     cmds:
       - migrate -source file://migrations/postgres -database postgres://postgres:postgres@localhost:5432/app?sslmode=disable down
@@ -35,3 +44,5 @@ tasks:
     desc: db migration drop
     cmds:
       - migrate -source file://migrations/postgres -database postgres://postgres:postgres@localhost:5432/app?sslmode=disable drop
+
+  

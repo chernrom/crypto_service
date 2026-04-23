@@ -1,0 +1,24 @@
+{
+    "files.autoSave": "afterDelay",
+	"go.formatTool": "goimports",
+	"go.lintTool": "staticcheck",
+	"go.lintOnSave": "package",
+	"go.vetOnSave": "package",
+	"go.buildFlags": ["-tags=TEST_L1,TEST_L2,TEST_CONCURRENT"],
+	"go.testFlags": [
+		"-v",
+		"-count=1",
+		"-tags=TEST_L1,TEST_L2,TEST_CONCURRENT"
+	],
+	"go.testEnvFile": "${workspaceFolder}/.env",
+	"go.inferGopath": true,
+	"go.testTimeout": "30s",
+	"go.delveConfig": {
+		"debugAdapter": "dlv-dap",
+		"showGlobalVariables": true,
+		"showRegisters": false
+	},
+	"gopls": {
+		"build.buildFlags": []
+	}
+}
