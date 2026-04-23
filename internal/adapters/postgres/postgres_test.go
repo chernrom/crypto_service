@@ -1,9 +1,12 @@
+//go:build TEST_L1
+
 package postgres_test
 
 import (
 	"context"
 	"crypto_service/internal/adapters/postgres"
 	"crypto_service/internal/entities"
+	"os"
 	"testing"
 	"time"
 
@@ -12,7 +15,7 @@ import (
 )
 
 var (
-	connStr = "postgres://postgres:postgres@localhost:5432/app?sslmode=disable"
+	connStr = os.Getenv("TEST_PG_CONNSTR")
 )
 
 func makeDb(t *testing.T) *postgres.PostgresStorage {

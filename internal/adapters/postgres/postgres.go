@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto_service/internal/entities"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -12,13 +13,19 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	min = "MIN"
+	max = "MAX"
+	avg = "AVG"
+)
+
 type PostgresStorage struct {
 	pool     *pgxpool.Pool
 	once     sync.Once
 	cancelFn context.CancelFunc
 }
 
-type dtoCoinRow struct {
+type CoinRowDTO struct {
 	Title    string
 	Cost     float64
 	ActualAt time.Time
@@ -93,11 +100,11 @@ func (s *PostgresStorage) GetCoinsByTitles(ctx context.Context, titles []string)
 
 	rows, err := s.pool.Query(ctx, "SELECT DISTINCT ON (title) title, cost, actual_at FROM crypto.coins WHERE title = ANY($1) ORDER BY title, actual_at DESC;", titles)
 	if err != nil {
-		return nil, errors.Wrap(err, "query titles error")
+		return nil, errors.Wrapf(entities.ErrInternal, "query titles error: %v", err)
 	}
 	defer rows.Close()
 
-	dtoList, err := pgx.CollectRows(rows, pgx.RowToAddrOfStructByName[dtoCoinRow])
+	dtoList, err := pgx.CollectRows(rows, pgx.RowToAddrOfStructByName[CoinRowDTO])
 	if err != nil {
 		return nil, errors.Wrap(err, "collect rows error")
 	}
@@ -139,11 +146,11 @@ func (s *PostgresStorage) GetAggregatedCoins(ctx context.Context, titles []strin
 
 	rows, err := s.pool.Query(ctx, query, titles)
 	if err != nil {
-		return nil, errors.Wrap(err, "query titles error")
+		return nil, errors.Wrapf(entities.ErrInternal, "query titles error: %v", err)
 	}
 	defer rows.Close()
 
-	dtoList, err := pgx.CollectRows(rows, pgx.RowToAddrOfStructByName[dtoCoinRow])
+	dtoList, err := pgx.CollectRows(rows, pgx.RowToAddrOfStructByName[CoinRowDTO])
 	if err != nil {
 		return nil, errors.Wrap(err, "collect rows error")
 	}
@@ -156,6 +163,62 @@ func (s *PostgresStorage) GetAggregatedCoins(ctx context.Context, titles []strin
 		}
 
 		coins = append(coins, entity)
+	}
+
+	return coins, nil
+}
+
+func (s *PostgresStorage) GetCoinsWithAggregation(ctx context.Context, titles []string, aggregationType string) ([]*entities.Coin, error) {
+	var aggFunc string
+	switch strings.ToUpper(aggregationType) {
+	case min, max, avg:
+		aggFunc = strings.ToUpper(aggregationType)
+	default:
+		err := errors.Wrapf(entities.ErrInvalidParam, "invalid aggregation type: %v", aggFunc)
+		return nil, err
+	}
+
+	query := `SELECT c.title, ` + aggFunc + `(c.cost) AS cost, CURRENT_DATE AS actual_at
+	FROM crypto.coins c
+	WHERE c.title = ANY($1)
+	AND DATE(c.actual_at) = CURRENT_DATE
+	GROUP BY c.title
+	ORDER BY c.title`
+	params := []any{
+		titles,
+	}
+
+	rows, err := s.pool.Query(ctx, query, params...)
+	if err != nil {
+		return nil, errors.Wrapf(entities.ErrInternal, "query titles error: %v", err)
+	}
+	defer rows.Close()
+
+	coins := make([]*entities.Coin, 0)
+
+	for rows.Next() {
+		var (
+			title    string
+			cost     float64
+			actualAt time.Time
+		)
+		if err := rows.Scan(&title, &cost, &actualAt); err != nil {
+			return nil, errors.Wrapf(entities.ErrInternal, "scan error: %v", err)
+		}
+
+		coin, err := entities.NewCoin(title, cost, actualAt)
+		if err != nil {
+			return nil, errors.Wrap(err, "new coin error")
+		}
+		coins = append(coins, coin)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, errors.Wrapf(entities.ErrInternal, "rows err error: %v", err)
+	}
+
+	if len(coins) == 0 {
+		return nil, errors.Wrap(entities.ErrNotFound, "required titles not found")
 	}
 
 	return coins, nil
