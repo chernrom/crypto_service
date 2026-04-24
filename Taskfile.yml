@@ -1,4 +1,4 @@
-version: '3'
+version: "3"
 
 tasks:
   test:
@@ -15,10 +15,12 @@ tasks:
     desc: docker compose up
     cmds:
       - docker compose up -d
+      - migrate -source file://migrations/postgres -database postgres://postgres:postgres@localhost:5432/app?sslmode=disable up
 
   down:
     desc: docker compose down
     cmds:
+      - migrate -source file://migrations/postgres -database postgres://postgres:postgres@localhost:5432/app?sslmode=disable down
       - docker compose down
 
   test_l1:
@@ -30,19 +32,7 @@ tasks:
       - export $(grep -v '^#' .env | xargs) && go test -v -tags=TEST_L1 ./...
       - docker compose --profile L1 down -v
 
-  migrate:up:
-    desc: db migration up
-    cmds:
-      - migrate -source file://migrations/postgres -database postgres://postgres:postgres@localhost:5432/app?sslmode=disable up
-
-  migrate:down:
-    desc: db migration down
-    cmds:
-      - migrate -source file://migrations/postgres -database postgres://postgres:postgres@localhost:5432/app?sslmode=disable down
-
-  storage:drop:
+  migration:drop:
     desc: db migration drop
     cmds:
       - migrate -source file://migrations/postgres -database postgres://postgres:postgres@localhost:5432/app?sslmode=disable drop
-
-  
