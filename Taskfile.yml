@@ -1,7 +1,7 @@
 version: "3"
 
 tasks:
-  tests:
+  all:tests:
     desc: run all crypto_service tests
     cmds:
       - go test -count=1 ./...
@@ -15,11 +15,12 @@ tasks:
   up:
     desc: docker compose up
     vars:
-      PROFILE: ""
+      PROFILE: "--profile L1"
     cmds:
       - docker compose {{.PROFILE}} up -d
-      - until pg_isready -h localhost -p 5432; do echo "Waiting for postgres..." sleep 2 done echo "Postgres is up!"
+      - timeout 30 sh -c 'until docker compose {{.PROFILE}} exec -T db pg_isready -U postgres -p 5432; do echo "Waiting for postgres..."; sleep 2; done'; echo "Postgres is up!"
       - migrate -source file://migrations/postgres -database postgres://postgres:postgres@localhost:5432/app?sslmode=disable up
+
 
   down:
     desc: docker compose down
@@ -34,8 +35,8 @@ tasks:
       - docker compose --profile L1 down -v
       - task: up
         vars:
-          PROFILE: "--profile L1"
+          PROFILE: --profile L1
       - export $(grep -v '^#' .env | xargs) && go test -v -tags=TEST_L1 ./...
-      - task: down -v
+      - task: down
         vars:
-          PROFILE: "--profile L1"
+          PROFILE: --profile L1
