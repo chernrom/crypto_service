@@ -15,28 +15,27 @@ tasks:
   up:
     desc: docker compose up
     vars:
-      PROFILE: "--profile L1"
+      # Если профиль не передан, используем 'services' как дефолт
+      ACTIVE_PROFILE: '{{.PROFILE | default "--profile services"}}'
     cmds:
-      - docker compose {{.PROFILE}} up -d
-      - timeout 30 sh -c 'until docker compose {{.PROFILE}} exec -T db pg_isready -U postgres -p 5432; do echo "Waiting for postgres..."; sleep 2; done'; echo "Postgres is up!"
-      - migrate -source file://migrations/postgres -database postgres://postgres:postgres@localhost:5432/app?sslmode=disable up
-
+      - docker compose {{.ACTIVE_PROFILE}} up -d
+      - timeout 30 sh -c 'until docker compose {{.ACTIVE_PROFILE}} exec -T db pg_isready -U postgres -p 5432; do echo "Waiting for postgres..."; sleep 2; done'; echo "Postgres is up!"
+      - migrate -source file://migrations/postgres -database "postgres://postgres:postgres@localhost:5432/app?sslmode=disable" up
 
   down:
     desc: docker compose down
     vars:
-      PROFILE: ""
+      PROFILE: '{{.PROFILE | default ""}}'
     cmds:
       - migrate -source file://migrations/postgres -database postgres://postgres:postgres@localhost:5432/app?sslmode=disable drop
       - docker compose {{.PROFILE}} down
 
   test_l1:
+    dotenv: [".env"] # Загрузит переменные для всей задачи
     cmds:
       - docker compose --profile L1 down -v
       - task: up
-        vars:
-          PROFILE: --profile L1
-      - export $(grep -v '^#' .env | xargs) && go test -v -tags=TEST_L1 ./...
+        vars: { PROFILE: "--profile L1" }
+      - go test -v -tags=TEST_L1 ./...
       - task: down
-        vars:
-          PROFILE: --profile L1
+        vars: { PROFILE: "--profile L1" }

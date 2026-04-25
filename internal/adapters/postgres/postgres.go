@@ -31,6 +31,11 @@ type CoinRowDTO struct {
 	ActualAt time.Time
 }
 
+type CoinRowDTOAgg struct {
+	Title string
+	Cost  float64
+}
+
 func NewPostgresStorage(connString string) (*PostgresStorage, error) {
 	if connString == "" {
 		return nil, errors.Wrap(entities.ErrInvalidParam, "empty connect field")
@@ -150,7 +155,7 @@ func (s *PostgresStorage) GetAggregatedCoins(ctx context.Context, titles []strin
 	}
 	defer rows.Close()
 
-	dtoList, err := pgx.CollectRows(rows, pgx.RowToAddrOfStructByName[CoinRowDTO])
+	dtoList, err := pgx.CollectRows(rows, pgx.RowToAddrOfStructByName[CoinRowDTOAgg])
 	if err != nil {
 		return nil, errors.Wrap(err, "collect rows error")
 	}
