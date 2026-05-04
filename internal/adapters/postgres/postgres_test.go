@@ -4,14 +4,15 @@ package postgres_test
 
 import (
 	"context"
-	"crypto_service/internal/adapters/postgres"
-	"crypto_service/internal/entities"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
+
+	"crypto_service/internal/adapters/postgres"
+	"crypto_service/internal/entities"
 )
 
 var (
@@ -103,8 +104,6 @@ func Test_GetCoinsByTitles(t *testing.T) {
 }
 
 func Test_GetAggregatedCoins(t *testing.T) {
-	t.Parallel()
-
 	defer flushStorage(t)
 
 	btc1, err := entities.NewCoin("btc", 100, time.Now())
@@ -169,8 +168,6 @@ func Test_GetAggregatedCoins(t *testing.T) {
 }
 
 func Test_GetCoinsWithAggregation(t *testing.T) {
-	t.Parallel()
-
 	defer flushStorage(t)
 
 	btc1, err := entities.NewCoin("btc", 0.13, time.Now())

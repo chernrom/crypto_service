@@ -2,8 +2,6 @@ package coingecko
 
 import (
 	"context"
-	"crypto_service/internal/cases"
-	"crypto_service/internal/entities"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,7 +11,11 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+
+	"crypto_service/internal/cases"
+	"crypto_service/internal/entities"
 )
+
 
 const (
 	basePath        = "https://api.coingecko.com/"
