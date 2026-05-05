@@ -5,13 +5,13 @@ import (
 	"testing"
 	"time"
 
-	"crypto_service/internal/cases"
-	"crypto_service/internal/cases/mocks"
-	"crypto_service/internal/entities"
-
 	"github.com/golang/mock/gomock"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
+
+	"crypto_service/internal/cases"
+	"crypto_service/internal/cases/mocks"
+	"crypto_service/internal/entities"
 )
 
 var (

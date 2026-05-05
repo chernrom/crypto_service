@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"context"
-	"crypto_service/internal/entities"
 	"fmt"
 	"strings"
 	"sync"
@@ -11,6 +10,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pkg/errors"
+
+	"crypto_service/internal/entities"
 )
 
 const (
