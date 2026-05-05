@@ -16,7 +16,6 @@ import (
 	"crypto_service/internal/entities"
 )
 
-
 const (
 	basePath        = "https://api.coingecko.com/"
 	simplePricePath = "api/v3/simple/price"
@@ -70,15 +69,12 @@ func NewClient(apiToken string, opts ...ClientOption) (*Client, error) {
 	}
 	c.setOptions(opts...)
 
-	if c.costIn == "" {
+	switch {
+	case c.costIn == "":
 		return nil, errors.Wrap(entities.ErrInvalidParam, "costIn not set")
-	}
-
-	if c.Timeout == 0 {
+	case c.Timeout == 0:
 		return nil, errors.Wrap(entities.ErrInvalidParam, "timeout must be greater than 0")
-	}
-
-	if c.apiToken == "" {
+	case c.apiToken == "":
 		return nil, errors.Wrap(entities.ErrInvalidParam, "apiToken must be filled")
 	}
 
