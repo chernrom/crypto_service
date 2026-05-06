@@ -95,25 +95,25 @@ func (s *Server) actualRates(resp http.ResponseWriter, req *http.Request) {
 }
 
 func (s *Server) aggregatedRates(resp http.ResponseWriter, req *http.Request) {
-
 	slog.Info("requested aggregated rates")
 
 	resp.Header().Set("Content-Type", "application/json")
 
-	aggregate := req.URL.Query().Get("aggregate")
-	if aggregate == "" {
-		s.errProcessing(entities.ErrInvalidParam, resp)
-		return
-	}
-
-	var titlesDTO dto.TitlesDTO
-	err := json.NewDecoder(req.Body).Decode(&titlesDTO)
+	rawAggregate := req.URL.Query().Get("aggregate")
+	parsedAggregate, err := s.parseAggregate(rawAggregate)
 	if err != nil {
 		s.errProcessing(err, resp)
 		return
 	}
 
-	coins, err := s.service.GetAggregatedCoins(req.Context(), titlesDTO.Titles, aggregate)
+	var titlesDTO dto.TitlesDTO
+	err = json.NewDecoder(req.Body).Decode(&titlesDTO)
+	if err != nil {
+		s.errProcessing(err, resp)
+		return
+	}
+
+	coins, err := s.service.GetAggregatedCoins(req.Context(), titlesDTO.Titles, parsedAggregate)
 	if err != nil {
 		s.errProcessing(err, resp)
 		return
@@ -143,6 +143,10 @@ func (s *Server) coinsProcessing(coins []*entities.Coin, resp http.ResponseWrite
 
 	resp.WriteHeader(http.StatusOK)
 	resp.Write(data)
+}
+
+func (s *Server) parseAggregate(aggregate string) {
+
 }
 
 func (s *Server) timeoutMiddleware(next http.Handler) http.Handler {
