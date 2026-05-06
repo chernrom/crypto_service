@@ -17,8 +17,9 @@ import (
 )
 
 const (
-	basePath  = "/crypto/v1"
-	ratesPath = "/rates"
+	basePath       = "/crypto/v1"
+	ratesPath      = "/rates"
+	aggregatedPath = "/aggregated"
 )
 
 type Server struct {
@@ -90,6 +91,33 @@ func (s *Server) actualRates(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	s.coinsProcessing(coins, resp)
+}
+
+func (s *Server) aggregatedRates(resp http.ResponseWriter, req *http.Request) {
+
+	slog.Info("requested aggregated rates")
+
+	resp.Header().Set("Content-Type", "application/json")
+
+	aggregate := req.URL.Query().Get("aggregate")
+	if aggregate == "" {
+		s.errProcessing(entities.ErrInvalidParam, resp)
+		return
+	}
+
+	var titlesDTO dto.TitlesDTO
+	err := json.NewDecoder(req.Body).Decode(&titlesDTO)
+	if err != nil {
+		s.errProcessing(err, resp)
+		return
+	}
+
+	coins, err := s.service.GetAggregatedCoins(req.Context(), titlesDTO.Titles, aggregate)
+	if err != nil {
+		s.errProcessing(err, resp)
+		return
+	}
 	s.coinsProcessing(coins, resp)
 }
 

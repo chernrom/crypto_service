@@ -9,6 +9,14 @@ import (
 	"crypto_service/internal/entities"
 )
 
+type Aggregate string
+
+const (
+	AggregateMin Aggregate = "MIN"
+	AggregateMax Aggregate = "MAX"
+	AggregateAvg Aggregate = "AVG"
+)
+
 type Service struct {
 	provider CryptoProvider
 	storage  Storage
