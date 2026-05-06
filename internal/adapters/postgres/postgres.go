@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -129,52 +128,6 @@ func (s *PostgresStorage) GetCoinsByTitles(ctx context.Context, titles []string)
 }
 
 func (s *PostgresStorage) GetAggregatedCoins(ctx context.Context, titles []string, aggregationType string) ([]*entities.Coin, error) {
-	if len(titles) == 0 {
-		return []*entities.Coin{}, nil
-	}
-
-	if aggregationType == "" {
-		return []*entities.Coin{}, nil
-	}
-
-	validAggs := map[string]string{
-		"avg": "AVG",
-		"max": "MAX",
-		"min": "MIN",
-	}
-
-	sqlFunc, ok := validAggs[aggregationType]
-	if !ok {
-		return nil, errors.New("invalid aggregation type")
-	}
-
-	query := fmt.Sprintf(`SELECT title, %s(cost)::float as cost FROM crypto.coins WHERE title = ANY($1) GROUP BY title`, sqlFunc)
-
-	rows, err := s.pool.Query(ctx, query, titles)
-	if err != nil {
-		return nil, errors.Wrapf(entities.ErrInternal, "query titles error: %v", err)
-	}
-	defer rows.Close()
-
-	dtoList, err := pgx.CollectRows(rows, pgx.RowToAddrOfStructByName[CoinRowDTOAgg])
-	if err != nil {
-		return nil, errors.Wrap(err, "collect rows error")
-	}
-
-	var coins []*entities.Coin
-	for _, dto := range dtoList {
-		entity, err := entities.NewCoin(dto.Title, dto.Cost, time.Now())
-		if err != nil {
-			return nil, err
-		}
-
-		coins = append(coins, entity)
-	}
-
-	return coins, nil
-}
-
-func (s *PostgresStorage) GetCoinsWithAggregation(ctx context.Context, titles []string, aggregationType string) ([]*entities.Coin, error) {
 	var aggFunc string
 	switch strings.ToUpper(aggregationType) {
 	case min, max, avg:

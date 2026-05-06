@@ -12,9 +12,9 @@ import (
 type Aggregate string
 
 const (
-	AggregateMin Aggregate = "MIN"
-	AggregateMax Aggregate = "MAX"
-	AggregateAvg Aggregate = "AVG"
+	AggregateAvg Aggregate = "avg"
+	AggregateMin Aggregate = "min"
+	AggregateMax Aggregate = "max"
 )
 
 type Service struct {
