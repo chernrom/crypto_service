@@ -107,7 +107,7 @@ func (s *Server) aggregatedRates(resp http.ResponseWriter, req *http.Request) {
 	resp.Header().Set("Content-Type", "application/json")
 
 	rawAggregate := req.URL.Query().Get("aggregate")
-	parsedAggregate, err := s.parseAggregate(rawAggregate)
+	parsedAggregate, err := parseAggregate(rawAggregate)
 	if err != nil {
 		s.errProcessing(err, resp)
 		return
