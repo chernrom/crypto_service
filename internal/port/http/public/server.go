@@ -152,12 +152,12 @@ func (s *Server) coinsProcessing(coins []*entities.Coin, resp http.ResponseWrite
 	resp.Write(data)
 }
 
-func parseAggregate(raw string) (Aggregate, error) {
+func parseAggregate(raw string) (entities.Aggregate, error) {
 	normal := strings.ToLower(raw)
 
 	switch normal {
 	case string(AggregateMin), string(AggregateMax), string(AggregateAvg):
-		return Aggregate(normal), nil
+		return entities.Aggregate(normal), nil
 	default:
 		return "", fmt.Errorf("invalid aggregation type: %s: %w", raw, entities.ErrInvalidParam)
 	}
