@@ -78,14 +78,14 @@ func (s *Service) GetCoins(ctx context.Context, titles []string) ([]*entities.Co
 	return coins, nil
 }
 
-func (s *Service) GetAggregatedCoins(ctx context.Context, titles []string, aggregationType Aggregate) ([]*entities.Coin, error) {
-	
+func (s *Service) GetAggregatedCoins(ctx context.Context, titles []string, aggregate entities.Aggregate) ([]*entities.Coin, error) {
+
 	err := s.ensureCoinsExist(ctx, titles)
 	if err != nil {
 		return nil, errors.Wrap(err, "ensure coins exist failure")
 	}
 
-	aggregatedCoins, err := s.storage.GetAggregatedCoins(ctx, titles, aggregationType)
+	aggregatedCoins, err := s.storage.GetAggregatedCoins(ctx, titles, string(aggregate))
 	if err != nil {
 		return nil, errors.Wrap(err, "get aggregated coins failure")
 	}
