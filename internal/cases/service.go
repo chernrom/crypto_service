@@ -85,7 +85,7 @@ func (s *Service) GetAggregatedCoins(ctx context.Context, titles []string, aggre
 		return nil, errors.Wrap(err, "ensure coins exist failure")
 	}
 
-	aggregatedCoins, err := s.storage.GetAggregatedCoins(ctx, titles, string(aggregate))
+	aggregatedCoins, err := s.storage.GetAggregatedCoins(ctx, titles, aggregate)
 	if err != nil {
 		return nil, errors.Wrap(err, "get aggregated coins failure")
 	}

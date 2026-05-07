@@ -77,7 +77,7 @@ func (s *Server) registerRoutes() {
 	router := chi.NewRouter()
 	router.Use(s.timeoutMiddleware)
 	router.Post(fmt.Sprintf("%s%s", basePath, ratesPath), s.actualRates)
-
+	router.Post(fmt.Sprintf("%s%s%s", basePath, ratesPath, aggregatedPath), s.aggregatedRates)
 }
 
 func (s *Server) actualRates(resp http.ResponseWriter, req *http.Request) {
