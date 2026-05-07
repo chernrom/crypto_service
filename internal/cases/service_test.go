@@ -129,7 +129,7 @@ func TestService_GetCoins(t *testing.T) {
 				stageStorageGetAllTitles:     storageGetAllTitles,
 				stagesProviderGetActualCoins: providerGetActualCoins,
 				stagesStorageStore:           storageStore,
-				stageStorageGetLastCoins:     storageGetLastCoins,
+				stageStorageGetLastCoins:     storageGetCoinByTitles,
 			},
 			wantErr: false,
 		},
@@ -139,7 +139,7 @@ func TestService_GetCoins(t *testing.T) {
 				stageStorageGetAllTitles:     storageGetAllTitles,
 				stagesProviderGetActualCoins: providerGetActualCoins,
 				stagesStorageStore:           storageStore,
-				stageStorageGetLastCoins:     storageGetLastCoins,
+				stageStorageGetLastCoins:     storageGetCoinByTitles,
 				stageStorageGetLastCoinsErr:  errtest,
 			},
 			wantErr: true,
@@ -211,33 +211,33 @@ func TestService_GetAggregatedCoins(t *testing.T) {
 		stagesProviderGetActualCoinsErr   error
 		stagesStorageStore                func(ctx context.Context, t *testing.T, storage *mocks.MockStorage, coins []*entities.Coin, err error)
 		stagesStorageStoreErr             error
-		stageStorageGetAggregatedCoins    func(ctx context.Context, t *testing.T, storage *mocks.MockStorage, titles []string, aggregationType string, coins []*entities.Coin, err error)
+		stageStorageGetAggregatedCoins    func(ctx context.Context, t *testing.T, storage *mocks.MockStorage, titles []string, aggregate entities.Aggregate, coins []*entities.Coin, err error)
 		stageStorageGetAggregatedCoinsErr error
 	}
 
 	tests := []struct {
-		name            string
-		titles          []string
-		existingTitles  []string
-		providerTitles  []string
-		aggregationType string
-		stages          stages
-		wantErr         bool
-		resErr          error
+		name           string
+		titles         []string
+		existingTitles []string
+		providerTitles []string
+		aggregate      entities.Aggregate
+		stages         stages
+		wantErr        bool
+		resErr         error
 	}{
 		{
-			name:            "1",
-			titles:          []string{"btc", "eth"},
-			existingTitles:  []string{"btc"},
-			aggregationType: "SUM",
-			stages:          stages{},
-			wantErr:         true,
+			name:           "1",
+			titles:         []string{"btc", "eth"},
+			existingTitles: []string{"btc"},
+			aggregate:      "SUM",
+			stages:         stages{},
+			wantErr:        true,
 		},
 		{
-			name:            "2",
-			titles:          []string{"btc", "eth"},
-			existingTitles:  []string{"btc"},
-			aggregationType: "AVG",
+			name:           "2",
+			titles:         []string{"btc", "eth"},
+			existingTitles: []string{"btc"},
+			aggregate:      "AVG",
 			stages: stages{
 				stageStorageGetAllTitles:    storageGetAllTitles,
 				stageStorageGetAllTitlesErr: errtest,
@@ -246,11 +246,11 @@ func TestService_GetAggregatedCoins(t *testing.T) {
 			resErr:  errtest,
 		},
 		{
-			name:            "3",
-			titles:          []string{"btc", "eth"},
-			existingTitles:  []string{"btc"},
-			providerTitles:  []string{"eth"},
-			aggregationType: "AVG",
+			name:           "3",
+			titles:         []string{"btc", "eth"},
+			existingTitles: []string{"btc"},
+			providerTitles: []string{"eth"},
+			aggregate:      "AVG",
 			stages: stages{
 				stageStorageGetAllTitles:        storageGetAllTitles,
 				stagesProviderGetActualCoins:    providerGetActualCoins,
@@ -260,11 +260,11 @@ func TestService_GetAggregatedCoins(t *testing.T) {
 			resErr:  errtest,
 		},
 		{
-			name:            "4",
-			titles:          []string{"btc", "eth"},
-			existingTitles:  []string{"btc"},
-			providerTitles:  []string{"eth"},
-			aggregationType: "AVG",
+			name:           "4",
+			titles:         []string{"btc", "eth"},
+			existingTitles: []string{"btc"},
+			providerTitles: []string{"eth"},
+			aggregate:      "AVG",
 			stages: stages{
 				stageStorageGetAllTitles:     storageGetAllTitles,
 				stagesProviderGetActualCoins: providerGetActualCoins,
@@ -275,11 +275,11 @@ func TestService_GetAggregatedCoins(t *testing.T) {
 			resErr:  errtest,
 		},
 		{
-			name:            "5",
-			titles:          []string{"btc", "eth"},
-			existingTitles:  []string{"btc"},
-			providerTitles:  []string{"eth"},
-			aggregationType: "MAX",
+			name:           "5",
+			titles:         []string{"btc", "eth"},
+			existingTitles: []string{"btc"},
+			providerTitles: []string{"eth"},
+			aggregate:      "MAX",
 			stages: stages{
 				stageStorageGetAllTitles:          storageGetAllTitles,
 				stagesProviderGetActualCoins:      providerGetActualCoins,
@@ -291,10 +291,10 @@ func TestService_GetAggregatedCoins(t *testing.T) {
 			resErr:  errtest,
 		},
 		{
-			name:            "6",
-			titles:          []string{"btc", "eth"},
-			existingTitles:  []string{"btc", "eth"},
-			aggregationType: "MAX",
+			name:           "6",
+			titles:         []string{"btc", "eth"},
+			existingTitles: []string{"btc", "eth"},
+			aggregate:      "MAX",
 			stages: stages{
 				stageStorageGetAllTitles:       storageGetAllTitles,
 				stageStorageGetAggregatedCoins: storageGetAggregatedCoins,
@@ -343,14 +343,14 @@ func TestService_GetAggregatedCoins(t *testing.T) {
 			}
 
 			if tc.stages.stageStorageGetAggregatedCoins != nil {
-				tc.stages.stageStorageGetAggregatedCoins(ctx, it, mockStorage, tc.titles, tc.aggregationType, []*entities.Coin{btc, eth}, tc.stages.stageStorageGetAggregatedCoinsErr)
+				tc.stages.stageStorageGetAggregatedCoins(ctx, it, mockStorage, tc.titles, tc.aggregate, []*entities.Coin{btc, eth}, tc.stages.stageStorageGetAggregatedCoinsErr)
 			}
 
-			coins, err := service.GetAggregatedCoins(ctx, tc.titles, entities.Aggregate(tc.aggregationType))
+			coins, err := service.GetAggregatedCoins(ctx, tc.titles, entities.Aggregate(tc.aggregate))
 			if tc.wantErr {
 				require.Nil(it, coins)
 
-				if tc.aggregationType == "SUM" {
+				if tc.aggregate == "SUM" {
 					require.EqualError(it, err, "invalid aggregation type")
 				} else {
 					require.ErrorIs(it, err, tc.resErr)
@@ -500,16 +500,16 @@ func storageStore(ctx context.Context, t *testing.T, storage *mocks.MockStorage,
 	storage.EXPECT().Store(ctx, coins).Return(err)
 }
 
-func storageGetLastCoins(ctx context.Context, t *testing.T, storage *mocks.MockStorage, titles []string, coins []*entities.Coin, err error) {
+func storageGetCoinByTitles(ctx context.Context, t *testing.T, storage *mocks.MockStorage, titles []string, coins []*entities.Coin, err error) {
 	t.Helper()
 
-	storage.EXPECT().GetLastCoins(ctx, titles).Return(coins, err)
+	storage.EXPECT().GetCoinsByTitles(ctx, titles).Return(coins, err)
 }
 
-func storageGetAggregatedCoins(ctx context.Context, t *testing.T, storage *mocks.MockStorage, titles []string, aggregationType string, coins []*entities.Coin, err error) {
+func storageGetAggregatedCoins(ctx context.Context, t *testing.T, storage *mocks.MockStorage, titles []string, aggregate entities.Aggregate, coins []*entities.Coin, err error) {
 	t.Helper()
 
-	storage.EXPECT().GetAggregatedCoins(ctx, titles, aggregationType).Return(coins, err)
+	storage.EXPECT().GetAggregatedCoins(ctx, titles, aggregate).Return(coins, err)
 }
 
 func providerGetActualCoins(ctx context.Context, t *testing.T, provider *mocks.MockCryptoProvider, titles []string, coins []*entities.Coin, err error) {

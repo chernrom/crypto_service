@@ -36,18 +36,18 @@ func (m *MockStorage) EXPECT() *MockStorageMockRecorder {
 }
 
 // GetAggregatedCoins mocks base method.
-func (m *MockStorage) GetAggregatedCoins(ctx context.Context, titles []string, aggregationType string) ([]*entities.Coin, error) {
+func (m *MockStorage) GetAggregatedCoins(ctx context.Context, titles []string, aggregate entities.Aggregate) ([]*entities.Coin, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetAggregatedCoins", ctx, titles, aggregationType)
+	ret := m.ctrl.Call(m, "GetAggregatedCoins", ctx, titles, aggregate)
 	ret0, _ := ret[0].([]*entities.Coin)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetAggregatedCoins indicates an expected call of GetAggregatedCoins.
-func (mr *MockStorageMockRecorder) GetAggregatedCoins(ctx, titles, aggregationType interface{}) *gomock.Call {
+func (mr *MockStorageMockRecorder) GetAggregatedCoins(ctx, titles, aggregate interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAggregatedCoins", reflect.TypeOf((*MockStorage)(nil).GetAggregatedCoins), ctx, titles, aggregationType)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAggregatedCoins", reflect.TypeOf((*MockStorage)(nil).GetAggregatedCoins), ctx, titles, aggregate)
 }
 
 // GetAllTitles mocks base method.
@@ -68,16 +68,16 @@ func (mr *MockStorageMockRecorder) GetAllTitles(ctx interface{}) *gomock.Call {
 // GetCoinsByTitles mocks base method.
 func (m *MockStorage) GetCoinsByTitles(ctx context.Context, titles []string) ([]*entities.Coin, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetLastCoins", ctx, titles)
+	ret := m.ctrl.Call(m, "GetCoinsByTitles", ctx, titles)
 	ret0, _ := ret[0].([]*entities.Coin)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetCoinsByTitles indicates an expected call of GetCoinsByTitles.
-func (mr *MockStorageMockRecorder) GetLastCoins(ctx, titles interface{}) *gomock.Call {
+func (mr *MockStorageMockRecorder) GetCoinsByTitles(ctx, titles interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLastCoins", reflect.TypeOf((*MockStorage)(nil).GetCoinsByTitles), ctx, titles)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCoinsByTitles", reflect.TypeOf((*MockStorage)(nil).GetCoinsByTitles), ctx, titles)
 }
 
 // Store mocks base method.
