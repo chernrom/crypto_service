@@ -159,7 +159,7 @@ func parseAggregate(raw string) (Aggregate, error) {
 	case string(AggregateMin), string(AggregateMax), string(AggregateAvg):
 		return Aggregate(normal), nil
 	default:
-		return "", errors.Wrapf(entities.ErrInvalidParam, "invalid aggregation type: %s", raw)
+		return "", fmt.Errorf("invalid aggregation type: %s: %w", raw, entities.ErrInvalidParam)
 	}
 }
 
