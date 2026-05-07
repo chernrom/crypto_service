@@ -127,7 +127,7 @@ func (s *PostgresStorage) GetCoinsByTitles(ctx context.Context, titles []string)
 	return coins, nil
 }
 
-func (s *PostgresStorage) GetAggregatedCoins(ctx context.Context, titles []string, aggregationType string) ([]*entities.Coin, error) {
+func (s *PostgresStorage) GetAggregatedCoins(ctx context.Context, titles []string, aggregationType Aggregate) ([]*entities.Coin, error) {
 	var aggFunc string
 	switch strings.ToUpper(aggregationType) {
 	case min, max, avg:

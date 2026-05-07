@@ -78,11 +78,8 @@ func (s *Service) GetCoins(ctx context.Context, titles []string) ([]*entities.Co
 	return coins, nil
 }
 
-func (s *Service) GetAggregatedCoins(ctx context.Context, titles []string, aggregationType string) ([]*entities.Coin, error) {
-	if aggregationType != "MIN" && aggregationType != "MAX" && aggregationType != "AVG" {
-		return nil, errors.New("invalid aggregation type")
-	}
-
+func (s *Service) GetAggregatedCoins(ctx context.Context, titles []string, aggregationType Aggregate) ([]*entities.Coin, error) {
+	
 	err := s.ensureCoinsExist(ctx, titles)
 	if err != nil {
 		return nil, errors.Wrap(err, "ensure coins exist failure")
