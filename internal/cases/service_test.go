@@ -346,7 +346,7 @@ func TestService_GetAggregatedCoins(t *testing.T) {
 				tc.stages.stageStorageGetAggregatedCoins(ctx, it, mockStorage, tc.titles, tc.aggregationType, []*entities.Coin{btc, eth}, tc.stages.stageStorageGetAggregatedCoinsErr)
 			}
 
-			coins, err := service.GetAggregatedCoins(ctx, tc.titles, tc.aggregationType)
+			coins, err := service.GetAggregatedCoins(ctx, tc.titles, entities.Aggregate(tc.aggregationType))
 			if tc.wantErr {
 				require.Nil(it, coins)
 
