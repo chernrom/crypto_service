@@ -127,11 +127,11 @@ func (s *PostgresStorage) GetCoinsByTitles(ctx context.Context, titles []string)
 	return coins, nil
 }
 
-func (s *PostgresStorage) GetAggregatedCoins(ctx context.Context, titles []string, aggregationType Aggregate) ([]*entities.Coin, error) {
+func (s *PostgresStorage) GetAggregatedCoins(ctx context.Context, titles []string, aggregate entities.Aggregate) ([]*entities.Coin, error) {
 	var aggFunc string
-	switch strings.ToUpper(aggregationType) {
+	switch strings.ToUpper(string(aggregate)) {
 	case min, max, avg:
-		aggFunc = strings.ToUpper(aggregationType)
+		aggFunc = strings.ToUpper(string(aggregate))
 	default:
 		err := errors.Wrapf(entities.ErrInvalidParam, "invalid aggregation type: %v", aggFunc)
 		return nil, err
