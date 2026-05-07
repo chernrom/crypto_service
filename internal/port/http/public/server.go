@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi"
@@ -16,10 +17,16 @@ import (
 	"crypto_service/pkg/dto"
 )
 
+type Aggregate string
+
 const (
 	basePath       = "/crypto/v1"
 	ratesPath      = "/rates"
 	aggregatedPath = "/aggregated"
+
+	AggregateAvg Aggregate = "avg"
+	AggregateMin Aggregate = "min"
+	AggregateMax Aggregate = "max"
 )
 
 type Server struct {
@@ -145,8 +152,15 @@ func (s *Server) coinsProcessing(coins []*entities.Coin, resp http.ResponseWrite
 	resp.Write(data)
 }
 
-func (s *Server) parseAggregate(aggregate string) {
+func parseAggregate(raw string) (Aggregate, error) {
+	normal := strings.ToLower(raw)
 
+	switch normal {
+	case string(AggregateMin), string(AggregateMax), string(AggregateAvg):
+		return Aggregate(normal), nil
+	default:
+		return "", errors.Wrapf(entities.ErrInvalidParam, "invalid aggregation type: %s", raw)
+	}
 }
 
 func (s *Server) timeoutMiddleware(next http.Handler) http.Handler {
