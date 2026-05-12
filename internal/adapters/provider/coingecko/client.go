@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -97,7 +98,11 @@ func (c *Client) GetActualCoins(ctx context.Context, titles []string) ([]*entiti
 		return nil, errors.Wrapf(entities.ErrInternal, "do request error: %v", err)
 	}
 
-	defer response.Body.Close()
+	defer func() {
+		if err := response.Body.Close(); err != nil {
+			log.Printf("close body error: %v", err)
+		}
+	}()
 
 	return c.parseCoins(response.Body)
 }

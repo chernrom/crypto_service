@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -149,7 +150,10 @@ func (s *Server) coinsProcessing(coins []*entities.Coin, resp http.ResponseWrite
 	}
 
 	resp.WriteHeader(http.StatusOK)
-	resp.Write(data)
+	if _, err := resp.Write(data); err != nil {
+		log.Printf("response write error: %v", err)
+		return
+	}
 }
 
 func parseAggregate(raw string) (entities.Aggregate, error) {
@@ -198,5 +202,8 @@ func (s *Server) errProcessing(err error, resp http.ResponseWriter) {
 	}
 
 	resp.WriteHeader(errDTO.StatusCode)
-	resp.Write(data)
+	if _, err := resp.Write(data); err != nil {
+		log.Printf("response write error: %v", err)
+		return
+	}
 }
