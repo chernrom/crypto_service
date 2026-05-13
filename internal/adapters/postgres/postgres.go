@@ -103,8 +103,17 @@ func (s *PostgresStorage) GetCoinsByTitles(ctx context.Context, titles []string)
 		return []*entities.Coin{}, nil
 	}
 
-	rows, err := s.pool.Query(ctx,
-		"SELECT DISTINCT ON (title) title, cost, actual_at FROM crypto.coins WHERE title = ANY($1) ORDER BY title, actual_at DESC;", titles)
+	query := `
+	SELECT DISTINCT ON (title)
+		title,
+		cost,
+		actual_at
+	FROM crypto.coins
+	WHERE title = ANY($1)
+	ORDER BY title, actual_at DESC;
+	`
+
+	rows, err := s.pool.Query(ctx, query, titles)
 	if err != nil {
 		return nil, errors.Wrapf(entities.ErrInternal, "query titles error: %v", err)
 	}
@@ -128,7 +137,10 @@ func (s *PostgresStorage) GetCoinsByTitles(ctx context.Context, titles []string)
 	return coins, nil
 }
 
-func (s *PostgresStorage) GetAggregatedCoins(ctx context.Context, titles []string, aggregate entities.Aggregate) ([]*entities.Coin, error) {
+func (s *PostgresStorage) GetAggregatedCoins(
+	ctx context.Context,
+	titles []string,
+	aggregate entities.Aggregate) ([]*entities.Coin, error) {
 	var aggFunc string
 	switch strings.ToUpper(string(aggregate)) {
 	case min, max, avg:
