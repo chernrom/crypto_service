@@ -77,14 +77,36 @@ func TestNewService(t *testing.T) {
 func TestService_GetCoins(t *testing.T) {
 	t.Parallel()
 	type stages struct {
-		stageStorageGetAllTitles        func(ctx context.Context, t *testing.T, storage *mocks.MockStorage, titles []string, err error)
-		stageStorageGetAllTitlesErr     error
-		stagesProviderGetActualCoins    func(ctx context.Context, t *testing.T, provider *mocks.MockCryptoProvider, titles []string, coins []*entities.Coin, err error)
+		stageStorageGetAllTitles func(ctx context.Context,
+			t *testing.T,
+			storage *mocks.MockStorage,
+			titles []string,
+			err error,
+		)
+		stageStorageGetAllTitlesErr  error
+		stagesProviderGetActualCoins func(ctx context.Context,
+			t *testing.T,
+			provider *mocks.MockCryptoProvider,
+			titles []string,
+			coins []*entities.Coin,
+			err error,
+		)
 		stagesProviderGetActualCoinsErr error
-		stagesStorageStore              func(ctx context.Context, t *testing.T, storage *mocks.MockStorage, coins []*entities.Coin, err error)
-		stagesStorageStoreErr           error
-		stageStorageGetLastCoins        func(ctx context.Context, t *testing.T, storage *mocks.MockStorage, titles []string, coins []*entities.Coin, err error)
-		stageStorageGetLastCoinsErr     error
+		stagesStorageStore              func(ctx context.Context,
+			t *testing.T,
+			storage *mocks.MockStorage,
+			coins []*entities.Coin,
+			err error,
+		)
+		stagesStorageStoreErr    error
+		stageStorageGetLastCoins func(ctx context.Context,
+			t *testing.T,
+			storage *mocks.MockStorage,
+			titles []string,
+			coins []*entities.Coin,
+			err error,
+		)
+		stageStorageGetLastCoinsErr error
 	}
 
 	tests := []struct {
@@ -172,19 +194,45 @@ func TestService_GetCoins(t *testing.T) {
 			require.NoError(it, err)
 
 			if tc.stages.stageStorageGetAllTitles != nil {
-				tc.stages.stageStorageGetAllTitles(ctx, it, mockStorage, []string{btcTitle}, tc.stages.stageStorageGetAllTitlesErr)
+				tc.stages.stageStorageGetAllTitles(
+					ctx,
+					it,
+					mockStorage,
+					[]string{btcTitle},
+					tc.stages.stageStorageGetAllTitlesErr,
+				)
 			}
 
 			if tc.stages.stagesProviderGetActualCoins != nil {
-				tc.stages.stagesProviderGetActualCoins(ctx, it, mockProvider, []string{ethTitle}, []*entities.Coin{eth}, tc.stages.stagesProviderGetActualCoinsErr)
+				tc.stages.stagesProviderGetActualCoins(
+					ctx,
+					it,
+					mockProvider,
+					[]string{ethTitle},
+					[]*entities.Coin{eth},
+					tc.stages.stagesProviderGetActualCoinsErr,
+				)
 			}
 
 			if tc.stages.stagesStorageStore != nil {
-				tc.stages.stagesStorageStore(ctx, it, mockStorage, []*entities.Coin{eth}, tc.stages.stagesStorageStoreErr)
+				tc.stages.stagesStorageStore(
+					ctx,
+					it,
+					mockStorage,
+					[]*entities.Coin{eth},
+					tc.stages.stagesStorageStoreErr,
+				)
 			}
 
 			if tc.stages.stageStorageGetLastCoins != nil {
-				tc.stages.stageStorageGetLastCoins(ctx, it, mockStorage, []string{btcTitle, ethTitle}, []*entities.Coin{eth}, tc.stages.stageStorageGetLastCoinsErr)
+				tc.stages.stageStorageGetLastCoins(
+					ctx,
+					it,
+					mockStorage,
+					[]string{btcTitle, ethTitle},
+					[]*entities.Coin{eth},
+					tc.stages.stageStorageGetLastCoinsErr,
+				)
 			}
 
 			coins, err := service.GetCoins(ctx, []string{btcTitle, ethTitle})
@@ -205,13 +253,39 @@ func TestService_GetAggregatedCoins(t *testing.T) {
 	t.Parallel()
 
 	type stages struct {
-		stageStorageGetAllTitles          func(ctx context.Context, t *testing.T, storage *mocks.MockStorage, titles []string, err error)
-		stageStorageGetAllTitlesErr       error
-		stagesProviderGetActualCoins      func(ctx context.Context, t *testing.T, provider *mocks.MockCryptoProvider, titles []string, coins []*entities.Coin, err error)
-		stagesProviderGetActualCoinsErr   error
-		stagesStorageStore                func(ctx context.Context, t *testing.T, storage *mocks.MockStorage, coins []*entities.Coin, err error)
-		stagesStorageStoreErr             error
-		stageStorageGetAggregatedCoins    func(ctx context.Context, t *testing.T, storage *mocks.MockStorage, titles []string, aggregate entities.Aggregate, coins []*entities.Coin, err error)
+		stageStorageGetAllTitles func(
+			ctx context.Context,
+			t *testing.T,
+			storage *mocks.MockStorage,
+			titles []string, err error,
+		)
+		stageStorageGetAllTitlesErr  error
+		stagesProviderGetActualCoins func(
+			ctx context.Context,
+			t *testing.T,
+			provider *mocks.MockCryptoProvider,
+			titles []string,
+			coins []*entities.Coin,
+			err error,
+		)
+		stagesProviderGetActualCoinsErr error
+		stagesStorageStore              func(
+			ctx context.Context,
+			t *testing.T,
+			storage *mocks.MockStorage,
+			coins []*entities.Coin,
+			err error,
+		)
+		stagesStorageStoreErr          error
+		stageStorageGetAggregatedCoins func(
+			ctx context.Context,
+			t *testing.T,
+			storage *mocks.MockStorage,
+			titles []string,
+			aggregate entities.Aggregate,
+			coins []*entities.Coin,
+			err error,
+		)
 		stageStorageGetAggregatedCoinsErr error
 	}
 
@@ -331,22 +405,52 @@ func TestService_GetAggregatedCoins(t *testing.T) {
 			require.NoError(it, err)
 
 			if tc.stages.stageStorageGetAllTitles != nil {
-				tc.stages.stageStorageGetAllTitles(ctx, it, mockStorage, tc.existingTitles, tc.stages.stageStorageGetAllTitlesErr)
+				tc.stages.stageStorageGetAllTitles(
+					ctx,
+					it,
+					mockStorage,
+					tc.existingTitles,
+					tc.stages.stageStorageGetAllTitlesErr,
+				)
 			}
 
 			if tc.stages.stagesProviderGetActualCoins != nil {
-				tc.stages.stagesProviderGetActualCoins(ctx, it, mockProvider, tc.providerTitles, []*entities.Coin{eth}, tc.stages.stagesProviderGetActualCoinsErr)
+				tc.stages.stagesProviderGetActualCoins(
+					ctx,
+					it,
+					mockProvider,
+					tc.providerTitles,
+					[]*entities.Coin{eth},
+					tc.stages.stagesProviderGetActualCoinsErr)
 			}
 
 			if tc.stages.stagesStorageStore != nil {
-				tc.stages.stagesStorageStore(ctx, it, mockStorage, []*entities.Coin{eth}, tc.stages.stagesStorageStoreErr)
+				tc.stages.stagesStorageStore(
+					ctx,
+					it,
+					mockStorage,
+					[]*entities.Coin{eth},
+					tc.stages.stagesStorageStoreErr,
+				)
 			}
 
 			if tc.stages.stageStorageGetAggregatedCoins != nil {
-				tc.stages.stageStorageGetAggregatedCoins(ctx, it, mockStorage, tc.titles, tc.aggregate, []*entities.Coin{btc, eth}, tc.stages.stageStorageGetAggregatedCoinsErr)
+				tc.stages.stageStorageGetAggregatedCoins(
+					ctx,
+					it,
+					mockStorage,
+					tc.titles,
+					tc.aggregate,
+					[]*entities.Coin{btc, eth},
+					tc.stages.stageStorageGetAggregatedCoinsErr,
+				)
 			}
 
-			coins, err := service.GetAggregatedCoins(ctx, tc.titles, entities.Aggregate(tc.aggregate))
+			coins, err := service.GetAggregatedCoins(
+				ctx,
+				tc.titles,
+				entities.Aggregate(tc.aggregate),
+			)
 			if tc.wantErr {
 				require.Nil(it, coins)
 
@@ -371,11 +475,30 @@ func TestService_ActualizeCoins(t *testing.T) {
 	t.Parallel()
 
 	type stages struct {
-		stageStorageGetAllTitles        func(ctx context.Context, t *testing.T, storage *mocks.MockStorage, titles []string, err error)
-		stageStorageGetAllTitlesErr     error
-		stagesStorageStore              func(ctx context.Context, t *testing.T, storage *mocks.MockStorage, coins []*entities.Coin, err error)
-		stagesStorageStoreErr           error
-		stagesProviderGetActualCoins    func(ctx context.Context, t *testing.T, provider *mocks.MockCryptoProvider, titles []string, coins []*entities.Coin, err error)
+		stageStorageGetAllTitles func(
+			ctx context.Context,
+			t *testing.T,
+			storage *mocks.MockStorage,
+			titles []string,
+			err error,
+		)
+		stageStorageGetAllTitlesErr error
+		stagesStorageStore          func(
+			ctx context.Context,
+			t *testing.T,
+			storage *mocks.MockStorage,
+			coins []*entities.Coin,
+			err error,
+		)
+		stagesStorageStoreErr        error
+		stagesProviderGetActualCoins func(
+			ctx context.Context,
+			t *testing.T,
+			provider *mocks.MockCryptoProvider,
+			titles []string,
+			coins []*entities.Coin,
+			err error,
+		)
 		stagesProviderGetActualCoinsErr error
 	}
 
@@ -463,15 +586,34 @@ func TestService_ActualizeCoins(t *testing.T) {
 			require.NoError(it, err)
 
 			if tc.stages.stageStorageGetAllTitles != nil {
-				tc.stages.stageStorageGetAllTitles(ctx, it, mockStorage, tc.titlesFromStorage, tc.stages.stageStorageGetAllTitlesErr)
+				tc.stages.stageStorageGetAllTitles(
+					ctx,
+					it,
+					mockStorage,
+					tc.titlesFromStorage,
+					tc.stages.stageStorageGetAllTitlesErr,
+				)
 			}
 
 			if tc.stages.stagesProviderGetActualCoins != nil {
-				tc.stages.stagesProviderGetActualCoins(ctx, it, mockProvider, []string{btcTitle}, []*entities.Coin{btc}, tc.stages.stagesProviderGetActualCoinsErr)
+				tc.stages.stagesProviderGetActualCoins(
+					ctx,
+					it,
+					mockProvider,
+					[]string{btcTitle},
+					[]*entities.Coin{btc},
+					tc.stages.stagesProviderGetActualCoinsErr,
+				)
 			}
 
 			if tc.stages.stagesStorageStore != nil {
-				tc.stages.stagesStorageStore(ctx, it, mockStorage, []*entities.Coin{btc}, tc.stages.stagesStorageStoreErr)
+				tc.stages.stagesStorageStore(
+					ctx,
+					it,
+					mockStorage,
+					[]*entities.Coin{btc},
+					tc.stages.stagesStorageStoreErr,
+				)
 			}
 
 			err = service.ActualizeCoins(ctx)
@@ -488,31 +630,65 @@ func TestService_ActualizeCoins(t *testing.T) {
 
 }
 
-func storageGetAllTitles(ctx context.Context, t *testing.T, storage *mocks.MockStorage, titles []string, err error) {
+func storageGetAllTitles(
+	ctx context.Context,
+	t *testing.T,
+	storage *mocks.MockStorage,
+	titles []string,
+	err error,
+) {
 	t.Helper()
 
 	storage.EXPECT().GetAllTitles(ctx).Return(titles, err)
 }
 
-func storageStore(ctx context.Context, t *testing.T, storage *mocks.MockStorage, coins []*entities.Coin, err error) {
+func storageStore(
+	ctx context.Context,
+	t *testing.T,
+	storage *mocks.MockStorage,
+	coins []*entities.Coin,
+	err error,
+) {
 	t.Helper()
 
 	storage.EXPECT().Store(ctx, coins).Return(err)
 }
 
-func storageGetCoinByTitles(ctx context.Context, t *testing.T, storage *mocks.MockStorage, titles []string, coins []*entities.Coin, err error) {
+func storageGetCoinByTitles(
+	ctx context.Context,
+	t *testing.T,
+	storage *mocks.MockStorage,
+	titles []string,
+	coins []*entities.Coin,
+	err error,
+) {
 	t.Helper()
 
 	storage.EXPECT().GetCoinsByTitles(ctx, titles).Return(coins, err)
 }
 
-func storageGetAggregatedCoins(ctx context.Context, t *testing.T, storage *mocks.MockStorage, titles []string, aggregate entities.Aggregate, coins []*entities.Coin, err error) {
+func storageGetAggregatedCoins(
+	ctx context.Context,
+	t *testing.T,
+	storage *mocks.MockStorage,
+	titles []string,
+	aggregate entities.Aggregate,
+	coins []*entities.Coin,
+	err error,
+) {
 	t.Helper()
 
 	storage.EXPECT().GetAggregatedCoins(ctx, titles, aggregate).Return(coins, err)
 }
 
-func providerGetActualCoins(ctx context.Context, t *testing.T, provider *mocks.MockCryptoProvider, titles []string, coins []*entities.Coin, err error) {
+func providerGetActualCoins(
+	ctx context.Context,
+	t *testing.T,
+	provider *mocks.MockCryptoProvider,
+	titles []string,
+	coins []*entities.Coin,
+	err error,
+) {
 	t.Helper()
 
 	provider.EXPECT().GetActualCoins(ctx, titles).Return(coins, err)
