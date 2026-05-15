@@ -43,3 +43,7 @@ tasks:
       - go test -v -tags=TEST_L1 ./...
       - task: down
         vars: { PROFILE: "--profile L1" }
+
+  lint:
+    cmds:
+     - golangci-lint run
