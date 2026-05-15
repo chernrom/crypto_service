@@ -2,19 +2,12 @@ package cases
 
 import (
 	"context"
+	"log/slog"
 	"slices"
 
 	"github.com/pkg/errors"
 
 	"crypto_service/internal/entities"
-)
-
-type Aggregate string
-
-const (
-	AggregateAvg Aggregate = "avg"
-	AggregateMin Aggregate = "min"
-	AggregateMax Aggregate = "max"
 )
 
 type Service struct {
@@ -40,6 +33,12 @@ func NewService(provider CryptoProvider, storage Storage) (*Service, error) {
 func (s *Service) ensureCoinsExist(ctx context.Context, titles []string) error {
 	existingTitles, err := s.storage.GetAllTitles(ctx)
 	if err != nil {
+		slog.Error(
+			"get all titles failed",
+			"err", err,
+			"titles", titles,
+		)
+
 		return errors.Wrap(err, "get all titles failure")
 	}
 
@@ -54,10 +53,22 @@ func (s *Service) ensureCoinsExist(ctx context.Context, titles []string) error {
 	if len(missingTitles) > 0 {
 		missingCoins, err := s.provider.GetActualCoins(ctx, missingTitles)
 		if err != nil {
+			slog.Error(
+				"get actual coins failed",
+				"err", err,
+				"titles", missingTitles,
+			)
+
 			return errors.Wrap(err, "get actual rates failure")
 		}
 
 		if err := s.storage.Store(ctx, missingCoins); err != nil {
+			slog.Error(
+				"store failed",
+				"err", err,
+				"coins", missingCoins,
+			)
+
 			return errors.Wrap(err, "store failure")
 		}
 	}
@@ -72,6 +83,12 @@ func (s *Service) GetCoins(ctx context.Context, titles []string) ([]*entities.Co
 
 	coins, err := s.storage.GetCoinsByTitles(ctx, titles)
 	if err != nil {
+		slog.Error(
+			"get coins by titles failed",
+			"err", err,
+			"titles", titles,
+		)
+
 		return nil, errors.Wrap(err, "get last coins failure")
 	}
 
@@ -90,6 +107,13 @@ func (s *Service) GetAggregatedCoins(
 
 	aggregatedCoins, err := s.storage.GetAggregatedCoins(ctx, titles, aggregate)
 	if err != nil {
+		slog.Error(
+			"get aggregated coins failed",
+			"err", err,
+			"titles", titles,
+			"aggregate", aggregate,
+		)
+
 		return nil, errors.Wrap(err, "get aggregated coins failure")
 	}
 
@@ -99,6 +123,12 @@ func (s *Service) GetAggregatedCoins(
 func (s *Service) ActualizeCoins(ctx context.Context) error {
 	titles, err := s.storage.GetAllTitles(ctx)
 	if err != nil {
+		slog.Error(
+			"get all titles failed",
+			"err", err,
+			"titles", titles,
+		)
+
 		return errors.Wrap(err, "get all titles failure")
 	}
 
@@ -108,10 +138,22 @@ func (s *Service) ActualizeCoins(ctx context.Context) error {
 
 	actualCoins, err := s.provider.GetActualCoins(ctx, titles)
 	if err != nil {
+		slog.Error(
+			"get actual coins failed",
+			"err", err,
+			"titles", titles,
+		)
+
 		return errors.Wrap(err, "get actual coins failure")
 	}
 
 	if err := s.storage.Store(ctx, actualCoins); err != nil {
+		slog.Error(
+			"store failed",
+			"err", err,
+			"coins", actualCoins,
+		)
+
 		return errors.Wrap(err, "store failure")
 	}
 
