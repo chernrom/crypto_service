@@ -11,5 +11,9 @@ type Storage interface {
 	Store(ctx context.Context, coins []*entities.Coin) error
 	GetAllTitles(ctx context.Context) ([]string, error)
 	GetCoinsByTitles(ctx context.Context, titles []string) ([]*entities.Coin, error)
-	GetAggregatedCoins(ctx context.Context, titles []string, aggregate entities.Aggregate) ([]*entities.Coin, error)
+	GetAggregatedCoins(
+		ctx context.Context,
+		titles []string,
+		aggregate entities.Aggregate,
+	) ([]*entities.Coin, error)
 }
