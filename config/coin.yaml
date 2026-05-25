@@ -1,0 +1,13 @@
+service_name: coin_service
+version: 1.0
+
+port: 
+  http:
+    public:
+      port: 9001
+      timeout: 3s
+
+storage:
+  type: postgres
+postgres:
+  connection_string: postgres://postgres:postgres@localhost:5432/app?sslmode=disable
