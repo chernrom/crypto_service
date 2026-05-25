@@ -28,6 +28,8 @@ const (
 	AggregateAvg Aggregate = "avg"
 	AggregateMin Aggregate = "min"
 	AggregateMax Aggregate = "max"
+
+	aggregateQueryParam = "aggregate"
 )
 
 type Server struct {
@@ -107,7 +109,7 @@ func (s *Server) aggregatedRates(resp http.ResponseWriter, req *http.Request) {
 
 	resp.Header().Set("Content-Type", "application/json")
 
-	rawAggregate := req.URL.Query().Get("aggregate")
+	rawAggregate := req.URL.Query().Get(aggregateQueryParam)
 	parsedAggregate, err := parseAggregate(rawAggregate)
 	if err != nil {
 		s.errProcessing(err, resp)
