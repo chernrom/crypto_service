@@ -6,8 +6,10 @@ port:
     public:
       port: 9001
       timeout: 3s
-
+client:
+  timeout: 2s
 storage:
   type: postgres
 postgres:
   connection_string: postgres://postgres:postgres@localhost:5432/app?sslmode=disable
+

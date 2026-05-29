@@ -2,9 +2,9 @@ package main
 
 import (
 	"flag"
-	"fmt"
 
 	"crypto_service/internal/adapters/config"
+	"crypto_service/pkg/application"
 )
 
 func main() {
@@ -14,6 +14,8 @@ func main() {
 	flag.Parse()
 
 	cfg := config.NewConfig(path)
-	fmt.Println(cfg.GetConnString())
+
+	app := application.New(cfg)
+	app.Start()
 	//./config/coin.yaml
 }

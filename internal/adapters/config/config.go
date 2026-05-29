@@ -39,3 +39,7 @@ func (cfg *Config) GetStorageType() string {
 func (cfg *Config) GetConnString() string {
 	return cfg.String(fmt.Sprintf("%s.%s", cfg.GetStorageType(), "connection_string"))
 }
+
+func (cfg *Config) GetClientTimeout() time.Duration {
+	return cfg.Duration("client.timeout")
+}
