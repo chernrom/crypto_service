@@ -108,6 +108,7 @@ func (app *App) initCryptoProvider() {
 	slog.Info("crypto provider init")
 
 	token := os.Getenv("COIN_GECKO_TOKEN")
+	slog.Info("api token", "token", token)
 	timeout := app.cfg.GetClientTimeout()
 	client, err := coingecko.NewClient(token, coingecko.WithCustomTimeout(timeout))
 	if err != nil {

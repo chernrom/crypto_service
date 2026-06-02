@@ -3,7 +3,6 @@ package public
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"log/slog"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi"
+	"github.com/pkg/errors"
 
 	"crypto_service/internal/entities"
 	"crypto_service/internal/port"
@@ -81,6 +81,7 @@ func (s *Server) registerRoutes() {
 	router.Use(s.timeoutMiddleware)
 	router.Post(fmt.Sprintf("%s%s", basePath, ratesPath), s.actualRates)
 	router.Post(fmt.Sprintf("%s%s%s", basePath, ratesPath, aggregatedPath), s.aggregatedRates)
+	s.router.Handler = router
 }
 
 func (s *Server) actualRates(resp http.ResponseWriter, req *http.Request) {
@@ -165,7 +166,7 @@ func parseAggregate(raw string) (entities.Aggregate, error) {
 	case string(AggregateMin), string(AggregateMax), string(AggregateAvg):
 		return entities.Aggregate(normal), nil
 	default:
-		return "", fmt.Errorf("invalid aggregation type: %s: %w", raw, entities.ErrInvalidParam)
+		return "", errors.Wrapf(entities.ErrInvalidParam, "invalid aggregation type: %s", raw)
 	}
 }
 
