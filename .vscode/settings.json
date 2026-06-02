@@ -11,6 +11,7 @@
 		"-tags=TEST_L1,TEST_L2,TEST_CONCURRENT"
 	],
 	"go.testEnvFile": "${workspaceFolder}/.env",
+	"go.toolsEnvVars": {},
 	"go.inferGopath": true,
 	"go.testTimeout": "30s",
 	"go.delveConfig": {
