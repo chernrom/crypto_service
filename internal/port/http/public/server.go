@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -40,10 +39,13 @@ type Server struct {
 func NewServer(service port.ServiceProvider, port string, timeout time.Duration) (*Server, error) {
 	switch {
 	case service == nil:
+		slog.Error("new server failed", "error", entities.ErrInvalidParam, "reason", "service is nil")
 		return nil, fmt.Errorf("new server: service is nil: %w", entities.ErrInvalidParam)
 	case port == "":
+		slog.Error("new server failed", "error", entities.ErrInvalidParam, "reason", "port is empty")
 		return nil, fmt.Errorf("new server: port is empty: %w", entities.ErrInvalidParam)
 	case timeout <= 0:
+		slog.Error("new server failed", "error", entities.ErrInvalidParam, "reason", "timeout must be greater than zero")
 		return nil, fmt.Errorf("new server: timeout must be greater than zero: %w", entities.ErrInvalidParam)
 	}
 
@@ -62,7 +64,7 @@ func (s *Server) Start() error {
 
 	go func() {
 		if err := s.router.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			slog.Error("server stopped", "err", err.Error())
+			slog.Error("server stopped", "error", err)
 		}
 	}()
 	return nil
@@ -70,7 +72,7 @@ func (s *Server) Start() error {
 
 func (s *Server) Stop(ctx context.Context) error {
 	if err := s.router.Shutdown(ctx); err != nil {
-		slog.Error("server shutdown", "err", err.Error())
+		slog.Error("server shutdown failed", "error", err)
 		return err
 	}
 	return nil
@@ -91,13 +93,23 @@ func (s *Server) actualRates(resp http.ResponseWriter, req *http.Request) {
 
 	var titlesDTO dto.TitlesDTO
 	err := json.NewDecoder(req.Body).Decode(&titlesDTO)
+
 	if err != nil {
-		s.errProcessing(err, resp)
+		slog.Error("failed to decode request body", "error", err)
+
+		wrappedErr := errors.Wrapf(
+			entities.ErrInvalidParam,
+			"failed to decode request body: %v",
+			err,
+		)
+
+		s.errProcessing(wrappedErr, resp)
 		return
 	}
 
 	coins, err := s.service.GetCoins(req.Context(), titlesDTO.Titles)
 	if err != nil {
+		slog.Error("get coins failed", "error", err)
 		s.errProcessing(err, resp)
 		return
 	}
@@ -113,6 +125,7 @@ func (s *Server) aggregatedRates(resp http.ResponseWriter, req *http.Request) {
 	rawAggregate := req.URL.Query().Get(aggregateQueryParam)
 	parsedAggregate, err := parseAggregate(rawAggregate)
 	if err != nil {
+		slog.Error("invalid aggregate query param", "aggregate", rawAggregate, "error", err)
 		s.errProcessing(err, resp)
 		return
 	}
@@ -120,12 +133,21 @@ func (s *Server) aggregatedRates(resp http.ResponseWriter, req *http.Request) {
 	var titlesDTO dto.TitlesDTO
 	err = json.NewDecoder(req.Body).Decode(&titlesDTO)
 	if err != nil {
-		s.errProcessing(err, resp)
+		slog.Error("failed to decode request body", "error", err)
+
+		wrappedErr := errors.Wrapf(
+			entities.ErrInvalidParam,
+			"failed to decode request body: %v",
+			err,
+		)
+
+		s.errProcessing(wrappedErr, resp)
 		return
 	}
 
 	coins, err := s.service.GetAggregatedCoins(req.Context(), titlesDTO.Titles, parsedAggregate)
 	if err != nil {
+		slog.Error("failed to get aggregated coins", "error", err)
 		s.errProcessing(err, resp)
 		return
 	}
@@ -137,7 +159,11 @@ func (s *Server) coinsProcessing(coins []*entities.Coin, resp http.ResponseWrite
 		Coins: make([]dto.CoinDTO, 0, len(coins)),
 	}
 
-	for _, coin := range coins {
+	for i, coin := range coins {
+		if coin == nil {
+			slog.Error("coin is nil", "index", i)
+			continue
+		}
 		coinsDTO.Coins = append(coinsDTO.Coins, dto.CoinDTO{
 			Title:    coin.Title(),
 			Cost:     coin.Cost(),
@@ -147,14 +173,14 @@ func (s *Server) coinsProcessing(coins []*entities.Coin, resp http.ResponseWrite
 
 	data, err := json.Marshal(&coinsDTO)
 	if err != nil {
-		slog.Error("marshal error response failure", "err", err.Error())
+		slog.Error("failed to marshal coins response", "error", err)
 		resp.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	resp.WriteHeader(http.StatusOK)
 	if _, err := resp.Write(data); err != nil {
-		log.Printf("response write error: %v", err)
+		slog.Error("failed to write response", "error", err)
 		return
 	}
 }
@@ -199,14 +225,14 @@ func (s *Server) errProcessing(err error, resp http.ResponseWriter) {
 
 	data, err := json.Marshal(&errDTO)
 	if err != nil {
-		slog.Error("marshal error response failure", "err", err.Error())
+		slog.Error("failed to marshal error response", "error", err)
 		resp.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	resp.WriteHeader(errDTO.StatusCode)
 	if _, err := resp.Write(data); err != nil {
-		log.Printf("response write error: %v", err)
+		slog.Error("failed to write response", "error", err)
 		return
 	}
 }
