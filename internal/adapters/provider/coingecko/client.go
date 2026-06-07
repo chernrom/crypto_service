@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -72,10 +72,13 @@ func NewClient(apiToken string, opts ...ClientOption) (*Client, error) {
 
 	switch {
 	case c.costIn == "":
+		slog.Error("new coingecko client failed", "error", entities.ErrInvalidParam, "reason", "costIn not set")
 		return nil, errors.Wrap(entities.ErrInvalidParam, "costIn not set")
 	case c.Timeout == 0:
+		slog.Error("new coingecko client failed", "error", entities.ErrInvalidParam, "reason", "timeout not set")
 		return nil, errors.Wrap(entities.ErrInvalidParam, "timeout must be greater than 0")
 	case c.apiToken == "":
+		slog.Error("new coingecko client failed", "error", entities.ErrInvalidParam, "reason", "apiToken not set")
 		return nil, errors.Wrap(entities.ErrInvalidParam, "apiToken must be filled")
 	}
 
@@ -100,7 +103,7 @@ func (c *Client) GetActualCoins(ctx context.Context, titles []string) ([]*entiti
 
 	defer func() {
 		if err := response.Body.Close(); err != nil {
-			log.Printf("close body error: %v", err)
+			slog.Error("close response body failed", "error", err)
 		}
 	}()
 
