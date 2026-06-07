@@ -83,6 +83,11 @@ func (s *Service) GetCoins(ctx context.Context, titles []string) ([]*entities.Co
 		return nil, errors.Wrap(err, "ensure coins exist failure")
 	}
 
+	if len(titles) == 0 {
+		slog.Error("titles is empty", "error", entities.ErrInvalidParam)
+		return nil, errors.Wrap(entities.ErrInvalidParam, "titles is empty")
+	}
+
 	coins, err := s.storage.GetCoinsByTitles(ctx, titles)
 	if err != nil {
 		slog.Error(
@@ -136,17 +141,13 @@ func (s *Service) ActualizeCoins(ctx context.Context) error {
 	}
 
 	if len(titles) == 0 {
+		slog.Error("titles is empty", "error", entities.ErrInvalidParam)
 		return nil
 	}
 
 	actualCoins, err := s.provider.GetActualCoins(ctx, titles)
 	if err != nil {
-		slog.Error(
-			"get actual coins failed",
-			"error", err,
-			"titles", titles,
-		)
-
+		slog.Error("get all titles failed", "error", err)
 		return errors.Wrap(err, "get actual coins failure")
 	}
 
