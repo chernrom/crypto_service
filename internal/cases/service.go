@@ -22,6 +22,7 @@ func NewService(provider CryptoProvider, storage Storage) (*Service, error) {
 	}
 
 	if storage == nil {
+		slog.Error("new service failed", "error", entities.ErrInvalidParam, "reason", "storage is nil")
 		return nil, errors.Wrap(entities.ErrInvalidParam, "storage is nil")
 	}
 
@@ -77,15 +78,15 @@ func (s *Service) ensureCoinsExist(ctx context.Context, titles []string) error {
 }
 
 func (s *Service) GetCoins(ctx context.Context, titles []string) ([]*entities.Coin, error) {
+	if len(titles) == 0 {
+		slog.Error("titles is empty", "error", entities.ErrInvalidParam)
+		return nil, errors.Wrap(entities.ErrInvalidParam, "titles is empty")
+	}
+
 	err := s.ensureCoinsExist(ctx, titles)
 	if err != nil {
 		slog.Error("ensure coins exist failed", "error", err, "titles", titles)
 		return nil, errors.Wrap(err, "ensure coins exist failure")
-	}
-
-	if len(titles) == 0 {
-		slog.Error("titles is empty", "error", entities.ErrInvalidParam)
-		return nil, errors.Wrap(entities.ErrInvalidParam, "titles is empty")
 	}
 
 	coins, err := s.storage.GetCoinsByTitles(ctx, titles)
@@ -106,6 +107,11 @@ func (s *Service) GetAggregatedCoins(
 	ctx context.Context,
 	titles []string,
 	aggregate entities.Aggregate) ([]*entities.Coin, error) {
+
+	if len(titles) == 0 {
+		slog.Error("titles is empty", "error", entities.ErrInvalidParam)
+		return nil, errors.Wrap(entities.ErrInvalidParam, "titles is empty")
+	}
 
 	err := s.ensureCoinsExist(ctx, titles)
 	if err != nil {
@@ -131,23 +137,18 @@ func (s *Service) GetAggregatedCoins(
 func (s *Service) ActualizeCoins(ctx context.Context) error {
 	titles, err := s.storage.GetAllTitles(ctx)
 	if err != nil {
-		slog.Error(
-			"get all titles failed",
-			"error", err,
-			"titles", titles,
-		)
-
+		slog.Error("get all titles failed", "error", err)
 		return errors.Wrap(err, "get all titles failure")
 	}
 
 	if len(titles) == 0 {
-		slog.Error("titles is empty", "error", entities.ErrInvalidParam)
+		slog.Info("no titles to actualize")
 		return nil
 	}
 
 	actualCoins, err := s.provider.GetActualCoins(ctx, titles)
 	if err != nil {
-		slog.Error("get all titles failed", "error", err)
+		slog.Error("get actual coins failed", "error", err, "titles", titles)
 		return errors.Wrap(err, "get actual coins failure")
 	}
 
