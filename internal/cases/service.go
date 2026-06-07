@@ -17,6 +17,7 @@ type Service struct {
 
 func NewService(provider CryptoProvider, storage Storage) (*Service, error) {
 	if provider == nil {
+		slog.Error("new service failed", "error", entities.ErrInvalidParam, "reason", "provider is nil")
 		return nil, errors.Wrap(entities.ErrInvalidParam, "provider is nil")
 	}
 
@@ -35,7 +36,7 @@ func (s *Service) ensureCoinsExist(ctx context.Context, titles []string) error {
 	if err != nil {
 		slog.Error(
 			"get all titles failed",
-			"err", err,
+			"error", err,
 			"titles", titles,
 		)
 
@@ -55,7 +56,7 @@ func (s *Service) ensureCoinsExist(ctx context.Context, titles []string) error {
 		if err != nil {
 			slog.Error(
 				"get actual coins failed",
-				"err", err,
+				"error", err,
 				"titles", missingTitles,
 			)
 
@@ -65,7 +66,7 @@ func (s *Service) ensureCoinsExist(ctx context.Context, titles []string) error {
 		if err := s.storage.Store(ctx, missingCoins); err != nil {
 			slog.Error(
 				"store failed",
-				"err", err,
+				"error", err,
 				"coins", missingCoins,
 			)
 
@@ -78,6 +79,7 @@ func (s *Service) ensureCoinsExist(ctx context.Context, titles []string) error {
 func (s *Service) GetCoins(ctx context.Context, titles []string) ([]*entities.Coin, error) {
 	err := s.ensureCoinsExist(ctx, titles)
 	if err != nil {
+		slog.Error("ensure coins exist failed", "error", err, "titles", titles)
 		return nil, errors.Wrap(err, "ensure coins exist failure")
 	}
 
@@ -85,7 +87,7 @@ func (s *Service) GetCoins(ctx context.Context, titles []string) ([]*entities.Co
 	if err != nil {
 		slog.Error(
 			"get coins by titles failed",
-			"err", err,
+			"error", err,
 			"titles", titles,
 		)
 
@@ -102,6 +104,7 @@ func (s *Service) GetAggregatedCoins(
 
 	err := s.ensureCoinsExist(ctx, titles)
 	if err != nil {
+		slog.Error("ensure coins exist failed", "error", err, "titles", titles, "aggregate", aggregate)
 		return nil, errors.Wrap(err, "ensure coins exist failure")
 	}
 
@@ -109,7 +112,7 @@ func (s *Service) GetAggregatedCoins(
 	if err != nil {
 		slog.Error(
 			"get aggregated coins failed",
-			"err", err,
+			"error", err,
 			"titles", titles,
 			"aggregate", aggregate,
 		)
@@ -125,7 +128,7 @@ func (s *Service) ActualizeCoins(ctx context.Context) error {
 	if err != nil {
 		slog.Error(
 			"get all titles failed",
-			"err", err,
+			"error", err,
 			"titles", titles,
 		)
 
@@ -140,7 +143,7 @@ func (s *Service) ActualizeCoins(ctx context.Context) error {
 	if err != nil {
 		slog.Error(
 			"get actual coins failed",
-			"err", err,
+			"error", err,
 			"titles", titles,
 		)
 
@@ -150,7 +153,7 @@ func (s *Service) ActualizeCoins(ctx context.Context) error {
 	if err := s.storage.Store(ctx, actualCoins); err != nil {
 		slog.Error(
 			"store failed",
-			"err", err,
+			"error", err,
 			"coins", actualCoins,
 		)
 
