@@ -74,7 +74,7 @@ func NewClient(apiToken string, opts ...ClientOption) (*Client, error) {
 	case c.costIn == "":
 		slog.Error("new coingecko client failed", "error", entities.ErrInvalidParam, "reason", "costIn not set")
 		return nil, errors.Wrap(entities.ErrInvalidParam, "costIn not set")
-	case c.Timeout == 0:
+	case c.Timeout <= 0:
 		slog.Error("new coingecko client failed", "error", entities.ErrInvalidParam, "reason", "timeout not set")
 		return nil, errors.Wrap(entities.ErrInvalidParam, "timeout must be greater than 0")
 	case c.apiToken == "":
@@ -86,19 +86,27 @@ func NewClient(apiToken string, opts ...ClientOption) (*Client, error) {
 }
 
 func (c *Client) GetActualCoins(ctx context.Context, titles []string) ([]*entities.Coin, error) {
+	if len(titles) == 0 {
+		slog.Error("titles is empty", "error", entities.ErrInvalidParam)
+		return nil, errors.Wrap(entities.ErrInvalidParam, "titles is empty")
+	}
+
 	urlRaw, err := c.buildURL(titles)
 	if err != nil {
-		return nil, errors.Wrapf(entities.ErrInternal, "urlRaw error: %v", err)
+		slog.Error("build url failed", "error", err, "titles", titles)
+		return nil, errors.Wrap(err, "build url failure")
 	}
 
 	request, err := c.buildRequest(ctx, urlRaw)
 	if err != nil {
-		return nil, errors.Wrapf(entities.ErrInternal, "build request error: %v", err)
+		slog.Error("build request failed", "error", err, "url", urlRaw)
+		return nil, errors.Wrap(err, "build request failure")
 	}
 
 	response, err := c.doRequest(request)
 	if err != nil {
-		return nil, errors.Wrapf(entities.ErrInternal, "do request error: %v", err)
+		slog.Error("do request failed", "error", err)
+		return nil, errors.Wrap(err, "do request failure")
 	}
 
 	defer func() {
@@ -110,15 +118,22 @@ func (c *Client) GetActualCoins(ctx context.Context, titles []string) ([]*entiti
 	return c.parseCoins(response.Body)
 }
 
-func (c *Client) parseCoins(body io.ReadCloser) ([]*entities.Coin, error) {
+func (c *Client) parseCoins(body io.Reader) ([]*entities.Coin, error) {
 	var data map[string]map[string]float64
 
 	if body == nil {
+		slog.Error("response body is nil", "error", entities.ErrInternal)
 		return nil, errors.Wrap(entities.ErrInternal, "incorrect body")
 	}
 
 	if err := json.NewDecoder(body).Decode(&data); err != nil {
+		slog.Error("decode coingecko response failed", "error", err)
 		return nil, errors.Wrapf(entities.ErrInternal, "incorrect decode: %v", err)
+	}
+
+	if len(data) == 0 {
+		slog.Error("empty coingecko response", "error", entities.ErrNotFound)
+		return nil, errors.Wrap(entities.ErrNotFound, "empty coingecko response")
 	}
 
 	coins := make([]*entities.Coin, 0, len(data))
@@ -126,11 +141,13 @@ func (c *Client) parseCoins(body io.ReadCloser) ([]*entities.Coin, error) {
 	for title, coinData := range data {
 		cost, ok := coinData[c.costIn]
 		if !ok {
+			slog.Error("cost not found in response", "title", title, "cost_in", c.costIn)
 			return nil, errors.Wrap(entities.ErrInternal, "cost not found in response")
 		}
 
 		coin, err := entities.NewCoin(title, cost, time.Now())
 		if err != nil {
+			slog.Error("new coin failed", "error", err, "title", title, "cost", cost)
 			return nil, errors.Wrap(err, "new coin from rawData")
 		}
 
@@ -143,6 +160,7 @@ func (c *Client) parseCoins(body io.ReadCloser) ([]*entities.Coin, error) {
 func (c *Client) buildURL(titles []string) (*url.URL, error) {
 	urlRaw, err := url.Parse(fmt.Sprintf("%s%s", basePath, simplePricePath))
 	if err != nil {
+		slog.Error("parse coingecko url failed", "error", err)
 		return nil, errors.Wrapf(entities.ErrInternal, "parse error: %v", err)
 	}
 
@@ -155,22 +173,50 @@ func (c *Client) buildURL(titles []string) (*url.URL, error) {
 }
 
 func (c *Client) buildRequest(ctx context.Context, urlRaw *url.URL) (*http.Request, error) {
+	if urlRaw == nil {
+		slog.Error("url is nil", "error", entities.ErrInvalidParam)
+		return nil, errors.Wrap(entities.ErrInvalidParam, "url is nil")
+	}
+
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, urlRaw.String(), nil)
 	if err != nil {
+		slog.Error("create coingecko request failed", "error", err, "url", urlRaw.String())
 		return nil, errors.Wrapf(entities.ErrInternal, "creating request error: %v", err)
 	}
+
 	request.Header.Add(xCgProApiKeyHeader, c.apiToken)
 
 	return request, nil
 }
 
 func (c *Client) doRequest(request *http.Request) (*http.Response, error) {
+	if request == nil {
+		slog.Error("request is nil", "error", entities.ErrInvalidParam)
+		return nil, errors.Wrap(entities.ErrInvalidParam, "request is nil")
+	}
+
 	response, err := c.Do(request)
 	if err != nil {
-		return nil, errors.Wrapf(entities.ErrInternal, "response error: %v", err)
+		slog.Error("coingecko request failed", "error", err, "url", request.URL.String())
+		return nil, errors.Wrap(err, "response error")
+	}
+
+	if response == nil {
+		slog.Error("coingecko response is nil", "error", entities.ErrInternal)
+		return nil, errors.Wrap(entities.ErrInternal, "response is nil")
 	}
 
 	if response.StatusCode != http.StatusOK {
+		slog.Error(
+			"coingecko returned non-ok status",
+			"status_code", response.StatusCode,
+			"url", request.URL.String(),
+		)
+
+		if err := response.Body.Close(); err != nil {
+			slog.Error("close response body failed", "error", err)
+		}
+
 		return nil, errors.Wrapf(entities.ErrInternal, "incorrect response status code: %d", response.StatusCode)
 	}
 
