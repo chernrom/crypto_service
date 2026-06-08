@@ -47,6 +47,13 @@ func NewPostgresStorage(connString string) (*PostgresStorage, error) {
 		return nil, errors.Wrapf(entities.ErrInternal, "pool creation error: %v", err)
 	}
 
+	if err := pool.Ping(ctx); err != nil {
+		slog.Error("postgres ping failed", "error", err)
+		pool.Close()
+		cancel()
+		return nil, errors.Wrapf(entities.ErrInternal, "postgres ping error: %v", err)
+	}
+
 	return &PostgresStorage{
 		pool:     pool,
 		cancelFn: cancel,
@@ -54,6 +61,10 @@ func NewPostgresStorage(connString string) (*PostgresStorage, error) {
 }
 
 func (s *PostgresStorage) Close() {
+	if s == nil {
+		return
+	}
+
 	s.once.Do(func() {
 		if s.cancelFn != nil {
 			s.cancelFn()
@@ -108,11 +119,23 @@ func (s *PostgresStorage) Store(ctx context.Context, coins []*entities.Coin) err
 	}
 
 	batchRes := s.pool.SendBatch(ctx, batch)
+	if batchRes == nil {
+		slog.Error("batch result is nil", "error", entities.ErrInternal)
+		return errors.Wrap(entities.ErrInternal, "batch result is nil")
+	}
+
 	defer func() {
 		if err := batchRes.Close(); err != nil {
 			slog.Error("batch close failed", "error", err)
 		}
 	}()
+
+	for range coins {
+		if _, err := batchRes.Exec(); err != nil {
+			slog.Error("batch exec failed", "error", err)
+			return errors.Wrapf(entities.ErrInternal, "batch error: %v", err)
+		}
+	}
 
 	return nil
 }
@@ -151,8 +174,7 @@ func (s *PostgresStorage) GetCoinsByTitles(ctx context.Context, titles []string)
 		return nil, errors.Wrap(err, "collect rows error")
 	}
 
-	var coins []*entities.Coin
-
+	coins := make([]*entities.Coin, 0, len(dtoList))
 	if len(dtoList) == 0 {
 		slog.Error("coins not found", "error", entities.ErrNotFound, "titles", titles)
 		return nil, errors.Wrap(entities.ErrNotFound, "coins not found")
@@ -200,11 +222,8 @@ func (s *PostgresStorage) GetAggregatedCoins(
 	AND DATE(c.actual_at) = CURRENT_DATE
 	GROUP BY c.title
 	ORDER BY c.title`
-	params := []any{
-		titles,
-	}
 
-	rows, err := s.pool.Query(ctx, query, params...)
+	rows, err := s.pool.Query(ctx, query, titles)
 	if err != nil {
 		slog.Error("query aggregated coins failed", "error", err, "titles", titles, "aggregate", aggregate)
 		return nil, errors.Wrapf(entities.ErrInternal, "query titles error: %v", err)
