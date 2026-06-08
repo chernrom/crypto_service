@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/go-co-op/gocron/v2"
 	"github.com/pkg/errors"
 
 	"crypto_service/internal/adapters/config"
@@ -26,6 +27,8 @@ type App struct {
 	provider cases.CryptoProvider
 	storage  cases.Storage
 	service  port.ServiceProvider
+
+	cron gocron.Scheduler
 }
 
 func New(cfg *config.Config) *App {
@@ -42,11 +45,15 @@ func (app *App) Start() {
 	app.initStorage()
 	app.initService()
 	app.initPublicPort()
+	app.initCron()
 
 	app.startAndAwait()
 }
 
 func (app *App) startAndAwait() {
+	app.cron.Start()
+	slog.Info("actualize cron job started")
+
 	if err := app.startHTTPPublic(); err != nil {
 		app.panic(err)
 	}
@@ -55,12 +62,22 @@ func (app *App) startAndAwait() {
 	signal.Notify(osMon, syscall.SIGINT, syscall.SIGTERM)
 	<-osMon
 	slog.Info("shutdown signal was received")
+
 	ctx, cancel := context.WithTimeout(context.Background(), app.cfg.GetClientTimeout())
 	defer cancel()
+
 	if err := app.server.Stop(ctx); err != nil {
 		slog.Error("public port shutdown error", "error", err)
 		app.panic(err)
 	}
+
+	ctx, cancel = context.WithTimeout(context.Background(), app.cfg.GetActualizeIntervalContextTimeout())
+	defer cancel()
+	if err := app.cron.ShutdownWithContext(ctx); err != nil {
+		slog.Error("actualize cron job shutdown error", "error", err)
+		app.panic(err)
+	}
+
 	slog.Info("application stopped successfully")
 }
 
@@ -114,6 +131,35 @@ func (app *App) initCryptoProvider() {
 		app.panic(err)
 	}
 	app.provider = client
+}
+
+func (app *App) initCron() {
+	s, err := gocron.NewScheduler()
+	if err != nil {
+		app.panic(err)
+	}
+
+	_, err = s.NewJob(
+		gocron.DurationJob(
+			app.cfg.GetActualizeInterval(),
+		),
+		gocron.NewTask(func() {
+			app.actualizeRates()
+		}),
+	)
+	if err != nil {
+		app.panic(err)
+	}
+	app.cron = s
+}
+
+func (app *App) actualizeRates() {
+	ctx, cancel := context.WithTimeout(context.Background(), app.cfg.GetActualizeIntervalContextTimeout())
+	defer cancel()
+
+	if err := app.service.ActualizeCoins(ctx); err != nil {
+		slog.Warn("actualize cron job failure", "err", err)
+	}
 }
 
 func (app *App) panic(err error) {

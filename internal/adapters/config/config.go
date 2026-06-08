@@ -43,3 +43,11 @@ func (cfg *Config) GetConnString() string {
 func (cfg *Config) GetClientTimeout() time.Duration {
 	return cfg.Duration("client.timeout")
 }
+
+func (cfg *Config) GetActualizeInterval() time.Duration {
+	return cfg.Duration("cron.actualize.interval")
+}
+
+func (cfg *Config) GetActualizeIntervalContextTimeout() time.Duration {
+	return cfg.Duration("cron.actualize.timeout")
+}

@@ -12,4 +12,7 @@ storage:
   type: postgres
 postgres:
   connection_string: postgres://postgres:postgres@localhost:5432/app?sslmode=disable
-
+cron:
+  actualize:
+    interval: 5m
+    timeout: 3s
