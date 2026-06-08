@@ -58,10 +58,10 @@ func (app *App) startAndAwait() {
 	ctx, cancel := context.WithTimeout(context.Background(), app.cfg.GetClientTimeout())
 	defer cancel()
 	if err := app.server.Stop(ctx); err != nil {
-		slog.Error("public port shutdown error")
+		slog.Error("public port shutdown error", "error", err)
 		app.panic(err)
 	}
-	slog.Info("application stopped succesfully")
+	slog.Info("application stopped successfully")
 }
 
 func (app *App) startHTTPPublic() error {
@@ -108,7 +108,6 @@ func (app *App) initCryptoProvider() {
 	slog.Info("crypto provider init")
 
 	token := os.Getenv("COIN_GECKO_TOKEN")
-	slog.Info("api token", "token", token)
 	timeout := app.cfg.GetClientTimeout()
 	client, err := coingecko.NewClient(token, coingecko.WithCustomTimeout(timeout))
 	if err != nil {
@@ -118,5 +117,6 @@ func (app *App) initCryptoProvider() {
 }
 
 func (app *App) panic(err error) {
+	slog.Error("application panic", "error", err)
 	panic(err)
 }
