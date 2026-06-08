@@ -10,7 +10,7 @@ tasks:
   run:
     desc: run main.go
     cmds:
-      - go run cmd/app/main.go
+      - go run cmd/app/main.go --config=./config/coin.yaml
 
   up:
     desc: docker compose up
