@@ -11,7 +11,7 @@ client:
 storage:
   type: postgres
 postgres:
-  connection_string: postgres://postgres:postgres@localhost:5432/app?sslmode=disable
+  connection_string: postgres://postgres:postgres@db:5432/app?sslmode=disable
 cron:
   actualize:
     interval: 5m

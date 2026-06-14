@@ -17,14 +17,15 @@ tasks:
     vars:
       ACTIVE_PROFILE: '{{.PROFILE | default "--profile services"}}'
     cmds:
-      - docker compose {{.ACTIVE_PROFILE}} up -d
+      - docker compose --profile L1 up -d
       - |
-        until docker compose {{.ACTIVE_PROFILE}} exec -T db pg_isready -h localhost -U postgres -p 5432; do
+        until docker compose --profile L1 exec -T db pg_isready -h localhost -U postgres -p 5432; do
           echo "Waiting for Postgres..."
           sleep 1
         done
       - echo "Postgres is up!"
       - migrate -source file://migrations/postgres -database "postgres://postgres:postgres@localhost:5432/app?sslmode=disable" up
+      - docker compose {{.ACTIVE_PROFILE}} up -d --build
 
   down:
     desc: docker compose down
@@ -46,4 +47,4 @@ tasks:
 
   lint:
     cmds:
-     - golangci-lint run
+      - golangci-lint run
