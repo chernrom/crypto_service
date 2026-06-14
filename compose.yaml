@@ -7,7 +7,33 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: app
-
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d app"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - crypto_network
     profiles:
       - L1
       - services
+
+  service_coin:
+    build:
+      context: .
+      dockerfile: deploy/coin/dockerfile
+    ports:
+      - "9001:9001"
+    environment:
+      COIN_GECKO_TOKEN: ${COIN_GECKO_TOKEN}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - crypto_network
+    profiles:
+      - services
+
+networks:
+  crypto_network:
+    driver: bridge
