@@ -86,6 +86,16 @@ func (s *Server) registerRoutes() {
 	s.router.Handler = router
 }
 
+// @Summary      Get rate info about required titles
+// @Description  providing rate info based on short titles of crypto
+// @Accept       json
+// @Produce      json
+// @Param        request  body  dto.TitlesDTO  true  "list of required titles"
+// @Success      200  {object}  dto.CoinsDTO
+// @Failure      400  {object}  dto.ErrorDTO
+// @Failure      404  {object}  dto.ErrorDTO
+// @Failure      500  {object}  dto.ErrorDTO
+// @Router       /rates [post]
 func (s *Server) actualRates(resp http.ResponseWriter, req *http.Request) {
 	slog.Info("requested actual rates")
 
@@ -117,6 +127,17 @@ func (s *Server) actualRates(resp http.ResponseWriter, req *http.Request) {
 	s.coinsProcessing(coins, resp)
 }
 
+// @Summary      Get aggregated info about requested titles
+// @Description  providing aggregated rates info based on short titles of crypto
+// @Accept       json
+// @Produce      json
+// @Param        request  body  dto.TitlesDTO  true  "list of required titles"
+// @Param        agg_type  query  string  true  "aggregation type: min, max, avg"  Enums(min, max, avg)
+// @Success      200  {object}  dto.CoinsDTO
+// @Failure      400  {object}  dto.ErrorDTO
+// @Failure      404  {object}  dto.ErrorDTO
+// @Failure      500  {object}  dto.ErrorDTO
+// @Router       /rates/aggregated [post]
 func (s *Server) aggregatedRates(resp http.ResponseWriter, req *http.Request) {
 	slog.Info("requested aggregated rates")
 

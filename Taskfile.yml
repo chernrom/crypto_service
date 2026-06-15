@@ -17,9 +17,9 @@ tasks:
     vars:
       ACTIVE_PROFILE: '{{.PROFILE | default "--profile services"}}'
     cmds:
-      - docker compose --profile L1 up -d
+      - docker compose --profile services up -d
       - |
-        until docker compose --profile L1 exec -T db pg_isready -h localhost -U postgres -p 5432; do
+        until docker compose --profile services exec -T db pg_isready -h localhost -U postgres -p 5432; do
           echo "Waiting for Postgres..."
           sleep 1
         done
@@ -48,3 +48,7 @@ tasks:
   lint:
     cmds:
       - golangci-lint run
+
+  gen_public_api:
+    cmds:
+     - swag init -g ./internal/port/http/public/doc.go -o ./api/http/public -ot json
