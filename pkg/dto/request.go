@@ -1,10 +1,9 @@
 package dto
 
-// TitlesDTO  represent required titles
+// TitlesDTO represents request with coin titles.
 // swagger:model TitlesDTO
 type TitlesDTO struct {
-	// array of required titles
+	// coin titles
 	// required: true
-	// example: ["btc", "eth"]
-	Titles []string `json:"titles"`
+	Titles []string `json:"titles" example:"btc,eth"`
 }
