@@ -86,8 +86,8 @@ func (s *Server) registerRoutes() {
 	s.router.Handler = router
 }
 
-// @Summary      Get rate info about required titles
-// @Description  providing rate info based on short titles of crypto
+// @Summary      Get actual coin rates
+// @Description  Returns actual rates for requested cryptocurrency titles
 // @Accept       json
 // @Produce      json
 // @Param        request  body  dto.TitlesDTO  true  "list of required titles"
@@ -127,12 +127,12 @@ func (s *Server) actualRates(resp http.ResponseWriter, req *http.Request) {
 	s.coinsProcessing(coins, resp)
 }
 
-// @Summary      Get aggregated info about requested titles
-// @Description  providing aggregated rates info based on short titles of crypto
+// @Summary      Get aggregated coin rates
+// @Description  Returns min, max, or avg rates for requested cryptocurrency titles
 // @Accept       json
 // @Produce      json
 // @Param        request  body  dto.TitlesDTO  true  "list of required titles"
-// @Param        agg_type  query  string  true  "aggregation type: min, max, avg"  Enums(min, max, avg)
+// @Param        aggregate  query  string  true  "aggregation type: min, max, avg"  Enums(min, max, avg)
 // @Success      200  {object}  dto.CoinsDTO
 // @Failure      400  {object}  dto.ErrorDTO
 // @Failure      404  {object}  dto.ErrorDTO

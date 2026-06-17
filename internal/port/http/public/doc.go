@@ -1,6 +1,6 @@
 // @title           Coin service API
 // @version         1.0
-// @description     This is a server for getting crypto currencies
+// @description     This is a server for getting cryptocurrency rates
 
 // @contact.name   API Support
 // @contact.email  romka-sumkin@yandex.ru

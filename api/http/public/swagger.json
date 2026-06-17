@@ -132,12 +132,15 @@
             "type": "object",
             "properties": {
                 "actual_at": {
+                    "description": "time when coin cost was actualized\nrequired: false\nexample: 2026-06-09T12:30:00Z",
                     "type": "string"
                 },
                 "cost": {
+                    "description": "coin cost in USD\nrequired: true\nexample: 63097.42",
                     "type": "number"
                 },
                 "title": {
+                    "description": "coin title\nrequired: true\nexample: btc",
                     "type": "string"
                 }
             }
@@ -146,6 +149,7 @@
             "type": "object",
             "properties": {
                 "coins": {
+                    "description": "array of coins\nrequired: true\nexample: [{\"title\":\"btc\",\"cost\":63097.42,\"actual_at\":\"2026-06-09T12:30:00Z\"}]",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/dto.CoinDTO"
@@ -157,9 +161,11 @@
             "type": "object",
             "properties": {
                 "message": {
+                    "description": "error message\nrequired: true\nexample: titles field is empty",
                     "type": "string"
                 },
                 "status_code": {
+                    "description": "HTTP status code\nrequired: true\nexample: 500",
                     "type": "integer"
                 }
             }
@@ -168,11 +174,15 @@
             "type": "object",
             "properties": {
                 "titles": {
-                    "description": "array of required titles\nrequired: true\nexample: [\"btc\", \"eth\"]",
+                    "description": "coin titles\nrequired: true",
                     "type": "array",
                     "items": {
                         "type": "string"
-                    }
+                    },
+                    "example": [
+                        "btc",
+                        "eth"
+                    ]
                 }
             }
         }
