@@ -45,6 +45,16 @@ tasks:
       - task: down
         vars: { PROFILE: "--profile L1" }
 
+  test_l2:
+    dotenv: [".env"]
+    cmds:
+      - docker compose --profile L2 down -v
+      - task: up
+        vars: { PROFILE: "--profile L2" }
+      - export $(grep -v '^#' .env | xargs) && go test -v -tags=TEST_L2 ./...
+      - task: down
+        vars: { PROFILE: "--profile L2" }
+
   lint:
     cmds:
       - golangci-lint run

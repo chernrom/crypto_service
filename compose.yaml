@@ -17,6 +17,7 @@ services:
     profiles:
       - L1
       - services
+      - L2
 
   service_coin:
     build:
@@ -33,6 +34,7 @@ services:
       - crypto_network
     profiles:
       - services
+      - L2
 
 networks:
   crypto_network:

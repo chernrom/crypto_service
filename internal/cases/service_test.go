@@ -300,18 +300,17 @@ func TestService_GetAggregatedCoins(t *testing.T) {
 		resErr         error
 	}{
 		{
-			name:           "1",
-			titles:         []string{"btc", "eth"},
-			existingTitles: []string{"btc"},
-			aggregate:      "SUM",
-			stages:         stages{},
-			wantErr:        true,
+			name:      "1",
+			titles:    []string{"btc", "eth"},
+			aggregate: "SUM",
+			wantErr:   true,
+			resErr:    entities.ErrInvalidParam,
 		},
 		{
 			name:           "2",
 			titles:         []string{"btc", "eth"},
 			existingTitles: []string{"btc"},
-			aggregate:      "AVG",
+			aggregate:      entities.AggregateAvg,
 			stages: stages{
 				stageStorageGetAllTitles:    storageGetAllTitles,
 				stageStorageGetAllTitlesErr: errtest,
@@ -324,7 +323,7 @@ func TestService_GetAggregatedCoins(t *testing.T) {
 			titles:         []string{"btc", "eth"},
 			existingTitles: []string{"btc"},
 			providerTitles: []string{"eth"},
-			aggregate:      "AVG",
+			aggregate:      entities.AggregateAvg,
 			stages: stages{
 				stageStorageGetAllTitles:        storageGetAllTitles,
 				stagesProviderGetActualCoins:    providerGetActualCoins,
@@ -338,7 +337,7 @@ func TestService_GetAggregatedCoins(t *testing.T) {
 			titles:         []string{"btc", "eth"},
 			existingTitles: []string{"btc"},
 			providerTitles: []string{"eth"},
-			aggregate:      "AVG",
+			aggregate:      entities.AggregateAvg,
 			stages: stages{
 				stageStorageGetAllTitles:     storageGetAllTitles,
 				stagesProviderGetActualCoins: providerGetActualCoins,
@@ -353,7 +352,7 @@ func TestService_GetAggregatedCoins(t *testing.T) {
 			titles:         []string{"btc", "eth"},
 			existingTitles: []string{"btc"},
 			providerTitles: []string{"eth"},
-			aggregate:      "MAX",
+			aggregate:      entities.AggregateMax,
 			stages: stages{
 				stageStorageGetAllTitles:          storageGetAllTitles,
 				stagesProviderGetActualCoins:      providerGetActualCoins,
@@ -368,7 +367,7 @@ func TestService_GetAggregatedCoins(t *testing.T) {
 			name:           "6",
 			titles:         []string{"btc", "eth"},
 			existingTitles: []string{"btc", "eth"},
-			aggregate:      "MAX",
+			aggregate:      entities.AggregateMax,
 			stages: stages{
 				stageStorageGetAllTitles:       storageGetAllTitles,
 				stageStorageGetAggregatedCoins: storageGetAggregatedCoins,
@@ -383,7 +382,7 @@ func TestService_GetAggregatedCoins(t *testing.T) {
 			it.Parallel()
 
 			ctrl := gomock.NewController(it)
-			t.Cleanup(func() {
+			it.Cleanup(func() {
 				ctrl.Finish()
 			})
 
@@ -453,11 +452,11 @@ func TestService_GetAggregatedCoins(t *testing.T) {
 			)
 			if tc.wantErr {
 				require.Nil(it, coins)
+				require.Error(it, err)
+				require.ErrorIs(it, err, tc.resErr)
 
-				if tc.aggregate == "SUM" {
-					require.EqualError(it, err, "invalid aggregation type")
-				} else {
-					require.ErrorIs(it, err, tc.resErr)
+				if tc.aggregate == entities.Aggregate("SUM") {
+					require.ErrorContains(it, err, "invalid aggregation type")
 				}
 
 				return
