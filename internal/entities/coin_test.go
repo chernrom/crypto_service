@@ -29,7 +29,7 @@ func TestNewCoin(t *testing.T) {
 			cost:       100,
 			wantErr:    true,
 			resErr:     entities.ErrInvalidParam,
-			errDetails: "empty name",
+			errDetails: "empty title",
 		},
 		{
 			name:       "negativeCost",

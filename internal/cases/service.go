@@ -107,10 +107,15 @@ func (s *Service) GetAggregatedCoins(
 	ctx context.Context,
 	titles []string,
 	aggregate entities.Aggregate) ([]*entities.Coin, error) {
-
 	if len(titles) == 0 {
 		slog.Error("titles is empty", "error", entities.ErrInvalidParam)
 		return nil, errors.Wrap(entities.ErrInvalidParam, "titles is empty")
+	}
+
+	if aggregate != entities.AggregateAvg &&
+		aggregate != entities.AggregateMin &&
+		aggregate != entities.AggregateMax {
+		return nil, errors.Wrap(entities.ErrInvalidParam, "invalid aggregation type")
 	}
 
 	err := s.ensureCoinsExist(ctx, titles)

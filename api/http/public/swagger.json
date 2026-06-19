@@ -1,7 +1,7 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "This is a server for getting crypto currencies",
+        "description": "This is a server for getting cryptocurrency rates",
         "title": "Coin service API",
         "contact": {
             "name": "API Support",
@@ -18,14 +18,14 @@
     "paths": {
         "/rates": {
             "post": {
-                "description": "providing rate info based on short titles of crypto",
+                "description": "Returns actual rates for requested cryptocurrency titles",
                 "consumes": [
                     "application/json"
                 ],
                 "produces": [
                     "application/json"
                 ],
-                "summary": "Get rate info about required titles",
+                "summary": "Get actual coin rates",
                 "parameters": [
                     {
                         "description": "list of required titles",
@@ -67,14 +67,14 @@
         },
         "/rates/aggregated": {
             "post": {
-                "description": "providing aggregated rates info based on short titles of crypto",
+                "description": "Returns min, max, or avg rates for requested cryptocurrency titles",
                 "consumes": [
                     "application/json"
                 ],
                 "produces": [
                     "application/json"
                 ],
-                "summary": "Get aggregated info about requested titles",
+                "summary": "Get aggregated coin rates",
                 "parameters": [
                     {
                         "description": "list of required titles",
@@ -93,7 +93,7 @@
                         ],
                         "type": "string",
                         "description": "aggregation type: min, max, avg",
-                        "name": "agg_type",
+                        "name": "aggregate",
                         "in": "query",
                         "required": true
                     }
