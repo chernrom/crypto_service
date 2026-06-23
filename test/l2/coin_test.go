@@ -8,6 +8,7 @@ import (
 	"crypto_service/pkg/dto"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -37,13 +38,14 @@ func NewClient(t *testing.T) *TestClient {
 	return client
 }
 
-func sendRequestToCoin(t *testing.T, aggregatedType string, titles []string) *http.Response {
+func sendRequestToCoin(t *testing.T, aggregatedType string, titles []string) (int, []byte) {
 	t.Helper()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
 	client := NewClient(t)
+
 	var aggregatedPath string
 	if aggregatedType != "" {
 		aggregatedPath = fmt.Sprintf("/%s", aggregatedType)
@@ -51,10 +53,11 @@ func sendRequestToCoin(t *testing.T, aggregatedType string, titles []string) *ht
 
 	urlRaw, err := url.Parse(fmt.Sprintf("%s%s%s", basePath, ratesPath, aggregatedPath))
 	require.NoError(t, err)
-	dto := dto.TitlesDTO{
+
+	requestDTO := dto.TitlesDTO{
 		Titles: titles,
 	}
-	data, err := json.Marshal(dto)
+	data, err := json.Marshal(requestDTO)
 	require.NoError(t, err)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, urlRaw.String(), bytes.NewReader(data))
@@ -64,13 +67,25 @@ func sendRequestToCoin(t *testing.T, aggregatedType string, titles []string) *ht
 	require.NoError(t, err)
 	defer resp.Body.Close()
 
-	return resp
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	return resp.StatusCode, body
 }
 
 func Test_AcutalCoinSuccess(t *testing.T) {
 	t.Parallel()
 
 	titles := []string{"btc", "eth"}
-	resp := sendRequestToCoin(t, "", titles)
-	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	statusCode, body := sendRequestToCoin(t, "", titles)
+
+	require.Equal(t, http.StatusOK, statusCode)
+	require.NotEmpty(t, body)
+
+	var responseDTO dto.CoinsDTO
+
+	err := json.Unmarshal(body, &responseDTO)
+	require.NoError(t, err)
+	require.NotEmpty(t, responseDTO.Coins)
 }
