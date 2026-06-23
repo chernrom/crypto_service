@@ -88,4 +88,16 @@ func Test_AcutalCoinSuccess(t *testing.T) {
 	err := json.Unmarshal(body, &responseDTO)
 	require.NoError(t, err)
 	require.NotEmpty(t, responseDTO.Coins)
+	require.Len(t, responseDTO.Coins, len(titles))
+
+	expectedTitles := make(map[string]struct{}, len(titles))
+
+	for _, title := range titles {
+		expectedTitles[title] = struct{}{}
+	}
+
+	for _, coin := range responseDTO.Coins {
+		_, ok := expectedTitles[coin.Title]
+		require.Truef(t, ok, "wrong coin title: %s", coin.Title)
+	}
 }
