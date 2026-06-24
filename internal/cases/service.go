@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 
 	"crypto_service/internal/entities"
+	"crypto_service/toolkit/tracing"
 )
 
 type Service struct {
@@ -33,8 +34,12 @@ func NewService(provider CryptoProvider, storage Storage) (*Service, error) {
 }
 
 func (s *Service) ensureCoinsExist(ctx context.Context, titles []string) error {
+	ctx, span, cancelfn := tracing.Start(ctx, "ensureCoinsExist")
+	defer cancelfn()
+
 	existingTitles, err := s.storage.GetAllTitles(ctx)
 	if err != nil {
+		span.SetError(err)
 		slog.Error(
 			"get all titles failed",
 			"error", err,

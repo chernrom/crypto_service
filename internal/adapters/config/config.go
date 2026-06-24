@@ -51,3 +51,11 @@ func (cfg *Config) GetActualizeInterval() time.Duration {
 func (cfg *Config) GetActualizeIntervalContextTimeout() time.Duration {
 	return cfg.Duration("cron.actualize.timeout")
 }
+
+func (cfg *Config) TracerEndpoint() string {
+	return cfg.String("tracing.jaeger")
+}
+
+func (cfg *Config) IsTracerSwitched() bool {
+	return cfg.Bool("tracing.switch_on")
+}
