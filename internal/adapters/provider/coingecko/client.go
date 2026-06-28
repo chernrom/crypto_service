@@ -15,6 +15,7 @@ import (
 
 	"crypto_service/internal/cases"
 	"crypto_service/internal/entities"
+	"crypto_service/toolkit/tracing"
 )
 
 const (
@@ -86,36 +87,51 @@ func NewClient(apiToken string, opts ...ClientOption) (*Client, error) {
 }
 
 func (c *Client) GetActualCoins(ctx context.Context, titles []string) ([]*entities.Coin, error) {
+	ctx, span, cancelFn := tracing.Start(ctx, "Provider.CoinGecko.GetActualCoins")
+	defer cancelFn()
+
 	if len(titles) == 0 {
-		slog.Error("titles is empty", "error", entities.ErrInvalidParam)
-		return nil, errors.Wrap(entities.ErrInvalidParam, "titles is empty")
+		err := errors.Wrap(entities.ErrInvalidParam, "titles is empty")
+		span.SetError(err)
+		slog.Error("titles is empty", "error", err)
+		return nil, err
 	}
 
 	urlRaw, err := c.buildURL(titles)
 	if err != nil {
+		span.SetError(err)
 		slog.Error("build url failed", "error", err, "titles", titles)
 		return nil, errors.Wrap(err, "build url failure")
 	}
 
 	request, err := c.buildRequest(ctx, urlRaw)
 	if err != nil {
+		span.SetError(err)
 		slog.Error("build request failed", "error", err, "url", urlRaw)
 		return nil, errors.Wrap(err, "build request failure")
 	}
 
-	response, err := c.doRequest(request)
+	response, err := c.doRequest(ctx, request)
 	if err != nil {
+		span.SetError(err)
 		slog.Error("do request failed", "error", err)
 		return nil, errors.Wrap(err, "do request failure")
 	}
 
 	defer func() {
 		if err := response.Body.Close(); err != nil {
+			span.SetError(err)
 			slog.Error("close response body failed", "error", err)
 		}
 	}()
 
-	return c.parseCoins(response.Body)
+	coins, err := c.parseCoins(response.Body)
+	if err != nil {
+		span.SetError(err)
+		return nil, err
+	}
+
+	return coins, nil
 }
 
 func (c *Client) parseCoins(body io.Reader) ([]*entities.Coin, error) {
@@ -189,35 +205,50 @@ func (c *Client) buildRequest(ctx context.Context, urlRaw *url.URL) (*http.Reque
 	return request, nil
 }
 
-func (c *Client) doRequest(request *http.Request) (*http.Response, error) {
+func (c *Client) doRequest(ctx context.Context, request *http.Request) (*http.Response, error) {
+	ctx, span, cancelFn := tracing.Start(ctx, "Provider.CoinGecko.DoRequest")
+	defer cancelFn()
+
 	if request == nil {
-		slog.Error("request is nil", "error", entities.ErrInvalidParam)
-		return nil, errors.Wrap(entities.ErrInvalidParam, "request is nil")
+		err := errors.Wrap(entities.ErrInvalidParam, "request is nil")
+		span.SetError(err)
+		slog.Error("request is nil", "error", err)
+		return nil, err
 	}
+
+	request = request.WithContext(ctx)
 
 	response, err := c.Do(request)
 	if err != nil {
+		span.SetError(err)
 		slog.Error("coingecko request failed", "error", err, "url", request.URL.String())
 		return nil, errors.Wrap(err, "response error")
 	}
 
 	if response == nil {
-		slog.Error("coingecko response is nil", "error", entities.ErrInternal)
-		return nil, errors.Wrap(entities.ErrInternal, "response is nil")
+		err := errors.Wrap(entities.ErrInternal, "response is nil")
+		span.SetError(err)
+		slog.Error("coingecko response is nil", "error", err)
+		return nil, err
 	}
 
 	if response.StatusCode != http.StatusOK {
+		err := errors.Wrapf(entities.ErrInternal, "incorrect response status code: %d", response.StatusCode)
+		span.SetError(err)
+
 		slog.Error(
 			"coingecko returned non-ok status",
+			"error", err,
 			"status_code", response.StatusCode,
 			"url", request.URL.String(),
 		)
 
-		if err := response.Body.Close(); err != nil {
-			slog.Error("close response body failed", "error", err)
+		if closeErr := response.Body.Close(); closeErr != nil {
+			span.SetError(closeErr)
+			slog.Error("close response body failed", "error", closeErr)
 		}
 
-		return nil, errors.Wrapf(entities.ErrInternal, "incorrect response status code: %d", response.StatusCode)
+		return nil, err
 	}
 
 	return response, nil

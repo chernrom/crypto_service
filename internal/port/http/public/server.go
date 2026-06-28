@@ -15,6 +15,7 @@ import (
 	"crypto_service/internal/entities"
 	"crypto_service/internal/port"
 	"crypto_service/pkg/dto"
+	"crypto_service/toolkit/tracing"
 )
 
 type Aggregate string
@@ -80,6 +81,8 @@ func (s *Server) Stop(ctx context.Context) error {
 
 func (s *Server) registerRoutes() {
 	router := chi.NewRouter()
+
+	router.Use(s.tracingMiddleware)
 	router.Use(s.timeoutMiddleware)
 	router.Post(fmt.Sprintf("%s%s", basePath, ratesPath), s.actualRates)
 	router.Post(fmt.Sprintf("%s%s%s", basePath, ratesPath, aggregatedPath), s.aggregatedRates)
@@ -97,6 +100,10 @@ func (s *Server) registerRoutes() {
 // @Failure      500  {object}  dto.ErrorDTO
 // @Router       /rates [post]
 func (s *Server) actualRates(resp http.ResponseWriter, req *http.Request) {
+	ctx, span, cancelFn := tracing.Start(req.Context(), "Handler.ActualRates")
+	defer cancelFn()
+	req = req.WithContext(ctx)
+
 	slog.Info("requested actual rates")
 
 	resp.Header().Set("Content-Type", "application/json")
@@ -105,6 +112,7 @@ func (s *Server) actualRates(resp http.ResponseWriter, req *http.Request) {
 	err := json.NewDecoder(req.Body).Decode(&titlesDTO)
 
 	if err != nil {
+		span.SetError(err)
 		slog.Error("failed to decode request body", "error", err)
 
 		wrappedErr := errors.Wrapf(
@@ -119,12 +127,13 @@ func (s *Server) actualRates(resp http.ResponseWriter, req *http.Request) {
 
 	coins, err := s.service.GetCoins(req.Context(), titlesDTO.Titles)
 	if err != nil {
+		span.SetError(err)
 		slog.Error("get coins failed", "error", err)
 		s.errProcessing(err, resp)
 		return
 	}
 
-	s.coinsProcessing(coins, resp)
+	s.coinsProcessing(coins, resp, span)
 }
 
 // @Summary      Get aggregated coin rates
@@ -139,6 +148,10 @@ func (s *Server) actualRates(resp http.ResponseWriter, req *http.Request) {
 // @Failure      500  {object}  dto.ErrorDTO
 // @Router       /rates/aggregated [post]
 func (s *Server) aggregatedRates(resp http.ResponseWriter, req *http.Request) {
+	ctx, span, cancelFn := tracing.Start(req.Context(), "Handler.AggregatedRates")
+	defer cancelFn()
+	req = req.WithContext(ctx)
+
 	slog.Info("requested aggregated rates")
 
 	resp.Header().Set("Content-Type", "application/json")
@@ -146,6 +159,7 @@ func (s *Server) aggregatedRates(resp http.ResponseWriter, req *http.Request) {
 	rawAggregate := req.URL.Query().Get(aggregateQueryParam)
 	parsedAggregate, err := parseAggregate(rawAggregate)
 	if err != nil {
+		span.SetError(err)
 		slog.Error("invalid aggregate query param", "aggregate", rawAggregate, "error", err)
 		s.errProcessing(err, resp)
 		return
@@ -154,6 +168,7 @@ func (s *Server) aggregatedRates(resp http.ResponseWriter, req *http.Request) {
 	var titlesDTO dto.TitlesDTO
 	err = json.NewDecoder(req.Body).Decode(&titlesDTO)
 	if err != nil {
+		span.SetError(err)
 		slog.Error("failed to decode request body", "error", err)
 
 		wrappedErr := errors.Wrapf(
@@ -168,14 +183,16 @@ func (s *Server) aggregatedRates(resp http.ResponseWriter, req *http.Request) {
 
 	coins, err := s.service.GetAggregatedCoins(req.Context(), titlesDTO.Titles, parsedAggregate)
 	if err != nil {
+		span.SetError(err)
 		slog.Error("failed to get aggregated coins", "error", err)
 		s.errProcessing(err, resp)
 		return
 	}
-	s.coinsProcessing(coins, resp)
+
+	s.coinsProcessing(coins, resp, span)
 }
 
-func (s *Server) coinsProcessing(coins []*entities.Coin, resp http.ResponseWriter) {
+func (s *Server) coinsProcessing(coins []*entities.Coin, resp http.ResponseWriter, span *tracing.Span) {
 	coinsDTO := dto.CoinsDTO{
 		Coins: make([]dto.CoinDTO, 0, len(coins)),
 	}
@@ -194,6 +211,7 @@ func (s *Server) coinsProcessing(coins []*entities.Coin, resp http.ResponseWrite
 
 	data, err := json.Marshal(&coinsDTO)
 	if err != nil {
+		span.SetError(err)
 		slog.Error("failed to marshal coins response", "error", err)
 		resp.WriteHeader(http.StatusInternalServerError)
 		return
@@ -201,6 +219,7 @@ func (s *Server) coinsProcessing(coins []*entities.Coin, resp http.ResponseWrite
 
 	resp.WriteHeader(http.StatusOK)
 	if _, err := resp.Write(data); err != nil {
+		span.SetError(err)
 		slog.Error("failed to write response", "error", err)
 		return
 	}
@@ -256,4 +275,16 @@ func (s *Server) errProcessing(err error, resp http.ResponseWriter) {
 		slog.Error("failed to write response", "error", err)
 		return
 	}
+}
+
+func (s *Server) tracingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
+		name := fmt.Sprintf("HTTP %s %s", req.Method, req.URL.Path)
+
+		ctx, _, cancelFn := tracing.Start(req.Context(), name)
+		defer cancelFn()
+
+		req = req.WithContext(ctx)
+		next.ServeHTTP(resp, req)
+	})
 }
