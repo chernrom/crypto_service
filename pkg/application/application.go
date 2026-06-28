@@ -17,6 +17,7 @@ import (
 	"crypto_service/internal/entities"
 	"crypto_service/internal/port"
 	"crypto_service/internal/port/http/public"
+	"crypto_service/toolkit/tracing"
 )
 
 type App struct {
@@ -154,10 +155,14 @@ func (app *App) initCron() {
 }
 
 func (app *App) actualizeRates() {
-	ctx, cancel := context.WithTimeout(context.Background(), app.cfg.GetActualizeIntervalContextTimeout())
+	ctx, span, cancelTrace := tracing.Start(context.Background(), "Application.ActualizeRates")
+	defer cancelTrace()
+
+	ctx, cancel := context.WithTimeout(ctx, app.cfg.GetActualizeIntervalContextTimeout())
 	defer cancel()
 
 	if err := app.service.ActualizeCoins(ctx); err != nil {
+		span.SetError(err)
 		slog.Warn("actualize cron job failure", "err", err)
 	}
 }

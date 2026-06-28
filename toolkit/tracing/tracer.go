@@ -23,11 +23,19 @@ type Span struct {
 }
 
 func (s *Span) SetError(err error) {
+	if err == nil || s == nil {
+		return
+	}
+
 	s.otelSpan.RecordError(err)
 	s.otelSpan.SetStatus(codes.Error, err.Error())
 }
 
 func Start(ctx context.Context, name string) (context.Context, *Span, func()) {
+	if name == "" {
+		name = "unknown"
+	}
+
 	if active {
 		ctx, otelSpan := otel.Tracer(tracerName).Start(ctx, name)
 		return ctx, &Span{otelSpan: otelSpan}, func() {
