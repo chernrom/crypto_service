@@ -18,6 +18,19 @@ services:
       - L1
       - services
       - L2
+  
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    restart: always
+    ports:
+      - "16686:16686"
+      - "4318:4318"
+    networks:
+      - crypto_network
+    profiles:
+      - L1
+      - services
+      - L2
 
   service_coin:
     build:

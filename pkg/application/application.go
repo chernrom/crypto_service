@@ -29,7 +29,8 @@ type App struct {
 	storage  cases.Storage
 	service  port.ServiceProvider
 
-	cron gocron.Scheduler
+	cron      gocron.Scheduler
+	cancelFns []func(context.Context) error
 }
 
 func New(cfg *config.Config) *App {
@@ -42,16 +43,20 @@ func New(cfg *config.Config) *App {
 }
 
 func (app *App) Start() {
+	app.cancelFns = make([]func(context.Context) error, 0)
+
 	app.initCryptoProvider()
 	app.initStorage()
 	app.initService()
 	app.initPublicPort()
 	app.initCron()
+	app.initTracer()
 
 	app.startAndAwait()
 }
 
 func (app *App) startAndAwait() {
+
 	app.cron.Start()
 	slog.Info("actualize cron job started")
 
@@ -77,6 +82,15 @@ func (app *App) startAndAwait() {
 	if err := app.cron.ShutdownWithContext(ctx); err != nil {
 		slog.Error("actualize cron job shutdown error", "error", err)
 		app.panic(err)
+	}
+
+	ctx, cancel = context.WithTimeout(context.Background(), app.cfg.GetActualizeIntervalContextTimeout())
+	defer cancel()
+	for _, cancelFn := range app.cancelFns {
+		if err := cancelFn(ctx); err != nil {
+			slog.Error("shutdown error", "error", err)
+			app.panic(err)
+		}
 	}
 
 	slog.Info("application stopped successfully")
@@ -152,6 +166,24 @@ func (app *App) initCron() {
 		app.panic(err)
 	}
 	app.cron = s
+}
+
+func (app *App) initTracer() {
+	ctx := context.Background()
+	slog.Info("tracer init")
+
+	isSwitch := app.cfg.IsTracerSwitched()
+	if !isSwitch {
+		slog.Info("tracer is switched off")
+		return
+	}
+	tracing.ActivateTracer()
+
+	cancelFn, err := tracing.StartTracer(ctx, app.cfg.GetServiceName(), app.cfg.GetServiceVersion(), app.cfg.TracerEndpoint())
+	if err != nil {
+		app.panic(err)
+	}
+	app.cancelFns = append(app.cancelFns, cancelFn)
 }
 
 func (app *App) actualizeRates() {
