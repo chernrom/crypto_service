@@ -59,3 +59,11 @@ func (cfg *Config) TracerEndpoint() string {
 func (cfg *Config) IsTracerSwitched() bool {
 	return cfg.Bool("tracing.switch_on")
 }
+
+func (cfg *Config) GetServiceName() string {
+	return cfg.String("service_name")
+}
+
+func (cfg *Config) GetServiceVersion() string {
+	return cfg.String("version")
+}
