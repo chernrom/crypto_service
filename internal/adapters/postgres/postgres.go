@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 
 	"crypto_service/internal/entities"
+	"crypto_service/toolkit/tracing"
 )
 
 const (
@@ -76,13 +77,19 @@ func (s *PostgresStorage) Close() {
 }
 
 func (s *PostgresStorage) GetAllTitles(ctx context.Context) ([]string, error) {
+	ctx, span, cancelFn := tracing.Start(ctx, "Adapters.Postgres.GetAllTitles")
+	defer cancelFn()
+
 	if s == nil || s.pool == nil {
-		slog.Error("postgres storage is nil", "error", entities.ErrInternal)
-		return nil, errors.Wrap(entities.ErrInternal, "postgres storage is nil")
+		err := errors.Wrap(entities.ErrInternal, "postgres storage is nil")
+		span.SetError(err)
+		slog.Error("postgres storage is nil", "error", err)
+		return nil, err
 	}
 
 	rows, err := s.pool.Query(ctx, "SELECT DISTINCT title FROM crypto.coins;")
 	if err != nil {
+		span.SetError(err)
 		slog.Error("query all titles failed", "error", err)
 		return nil, errors.Wrap(err, "query titles error")
 	}
@@ -90,6 +97,7 @@ func (s *PostgresStorage) GetAllTitles(ctx context.Context) ([]string, error) {
 
 	titles, err := pgx.CollectRows(rows, pgx.RowTo[string])
 	if err != nil {
+		span.SetError(err)
 		slog.Error("collect title rows failed", "error", err)
 		return nil, errors.Wrap(err, "collect rows error")
 	}
@@ -98,40 +106,53 @@ func (s *PostgresStorage) GetAllTitles(ctx context.Context) ([]string, error) {
 }
 
 func (s *PostgresStorage) Store(ctx context.Context, coins []*entities.Coin) error {
+	ctx, span, cancel := tracing.Start(ctx, "Adapters.Postgres.Store")
+	defer cancel()
+
 	if s == nil || s.pool == nil {
-		slog.Error("postgres storage is nil", "error", entities.ErrInternal)
-		return errors.Wrap(entities.ErrInternal, "postgres storage is nil")
+		err := errors.Wrap(entities.ErrInternal, "postgres storage is nil")
+		span.SetError(err)
+		slog.Error("postgres storage is nil", "error", err)
+		return err
 	}
 
 	if len(coins) == 0 {
 		slog.Info("no coins to store")
 		return nil
 	}
+
 	query := `INSERT INTO crypto.coins (title, cost, actual_at) VALUES ($1, $2, $3)`
 	batch := &pgx.Batch{}
 
 	for _, coin := range coins {
 		if coin == nil {
-			slog.Error("coin is nil", "error", entities.ErrInvalidParam)
-			return errors.Wrap(entities.ErrInvalidParam, "coin is nil")
+			err := errors.Wrap(entities.ErrInvalidParam, "coin is nil")
+			span.SetError(err)
+			slog.Error("coin is nil", "error", err)
+			return err
 		}
+
 		batch.Queue(query, coin.Title(), coin.Cost(), coin.ActualAt())
 	}
 
 	batchRes := s.pool.SendBatch(ctx, batch)
 	if batchRes == nil {
-		slog.Error("batch result is nil", "error", entities.ErrInternal)
-		return errors.Wrap(entities.ErrInternal, "batch result is nil")
+		err := errors.Wrap(entities.ErrInternal, "batch result is nil")
+		span.SetError(err)
+		slog.Error("batch result is nil", "error", err)
+		return err
 	}
 
 	defer func() {
 		if err := batchRes.Close(); err != nil {
+			span.SetError(err)
 			slog.Error("batch close failed", "error", err)
 		}
 	}()
 
 	for range coins {
 		if _, err := batchRes.Exec(); err != nil {
+			span.SetError(err)
 			slog.Error("batch exec failed", "error", err)
 			return errors.Wrapf(entities.ErrInternal, "batch error: %v", err)
 		}
@@ -141,9 +162,14 @@ func (s *PostgresStorage) Store(ctx context.Context, coins []*entities.Coin) err
 }
 
 func (s *PostgresStorage) GetCoinsByTitles(ctx context.Context, titles []string) ([]*entities.Coin, error) {
+	ctx, span, cancel := tracing.Start(ctx, "Adapters.Postgres.GetCoinsByTitles")
+	defer cancel()
+
 	if s == nil || s.pool == nil {
-		slog.Error("postgres storage is nil", "error", entities.ErrInternal)
-		return nil, errors.Wrap(entities.ErrInternal, "postgres storage is nil")
+		err := errors.Wrap(entities.ErrInternal, "postgres storage is nil")
+		span.SetError(err)
+		slog.Error("postgres storage is nil", "error", err)
+		return nil, err
 	}
 
 	if len(titles) == 0 {
@@ -163,6 +189,7 @@ func (s *PostgresStorage) GetCoinsByTitles(ctx context.Context, titles []string)
 
 	rows, err := s.pool.Query(ctx, query, titles)
 	if err != nil {
+		span.SetError(err)
 		slog.Error("query coins by titles failed", "error", err, "titles", titles)
 		return nil, errors.Wrapf(entities.ErrInternal, "query titles error: %v", err)
 	}
@@ -170,19 +197,24 @@ func (s *PostgresStorage) GetCoinsByTitles(ctx context.Context, titles []string)
 
 	dtoList, err := pgx.CollectRows(rows, pgx.RowToAddrOfStructByName[CoinRowDTO])
 	if err != nil {
+		span.SetError(err)
 		slog.Error("collect coin rows failed", "error", err, "titles", titles)
 		return nil, errors.Wrap(err, "collect rows error")
 	}
 
-	coins := make([]*entities.Coin, 0, len(dtoList))
 	if len(dtoList) == 0 {
-		slog.Error("coins not found", "error", entities.ErrNotFound, "titles", titles)
-		return nil, errors.Wrap(entities.ErrNotFound, "coins not found")
+		err := errors.Wrap(entities.ErrNotFound, "coins not found")
+		span.SetError(err)
+		slog.Error("coins not found", "error", err, "titles", titles)
+		return nil, err
 	}
+
+	coins := make([]*entities.Coin, 0, len(dtoList))
 
 	for _, dto := range dtoList {
 		entity, err := entities.NewCoin(dto.Title, dto.Cost, dto.ActualAt)
 		if err != nil {
+			span.SetError(err)
 			slog.Error("new coin failed", "error", err, "title", dto.Title, "cost", dto.Cost)
 			return nil, errors.Wrap(err, "new coin error")
 		}
@@ -196,15 +228,23 @@ func (s *PostgresStorage) GetCoinsByTitles(ctx context.Context, titles []string)
 func (s *PostgresStorage) GetAggregatedCoins(
 	ctx context.Context,
 	titles []string,
-	aggregate entities.Aggregate) ([]*entities.Coin, error) {
+	aggregate entities.Aggregate,
+) ([]*entities.Coin, error) {
+	ctx, span, cancel := tracing.Start(ctx, "Adapters.Postgres.GetAggregatedCoins")
+	defer cancel()
+
 	if s == nil || s.pool == nil {
-		slog.Error("postgres storage is nil", "error", entities.ErrInternal)
-		return nil, errors.Wrap(entities.ErrInternal, "postgres storage is nil")
+		err := errors.Wrap(entities.ErrInternal, "postgres storage is nil")
+		span.SetError(err)
+		slog.Error("postgres storage is nil", "error", err)
+		return nil, err
 	}
 
 	if len(titles) == 0 {
-		slog.Error("titles is empty", "error", entities.ErrInvalidParam)
-		return nil, errors.Wrap(entities.ErrInvalidParam, "titles is empty")
+		err := errors.Wrap(entities.ErrInvalidParam, "titles is empty")
+		span.SetError(err)
+		slog.Error("titles is empty", "error", err)
+		return nil, err
 	}
 
 	var aggFunc string
@@ -212,8 +252,10 @@ func (s *PostgresStorage) GetAggregatedCoins(
 	case min, max, avg:
 		aggFunc = strings.ToUpper(string(aggregate))
 	default:
-		slog.Error("invalid aggregation type", "error", entities.ErrInvalidParam, "aggregate", aggregate)
-		return nil, errors.Wrapf(entities.ErrInvalidParam, "invalid aggregation type: %v", aggregate)
+		err := errors.Wrapf(entities.ErrInvalidParam, "invalid aggregation type: %v", aggregate)
+		span.SetError(err)
+		slog.Error("invalid aggregation type", "error", err, "aggregate", aggregate)
+		return nil, err
 	}
 
 	query := `SELECT c.title, ` + aggFunc + `(c.cost) AS cost, CURRENT_DATE AS actual_at
@@ -225,6 +267,7 @@ func (s *PostgresStorage) GetAggregatedCoins(
 
 	rows, err := s.pool.Query(ctx, query, titles)
 	if err != nil {
+		span.SetError(err)
 		slog.Error("query aggregated coins failed", "error", err, "titles", titles, "aggregate", aggregate)
 		return nil, errors.Wrapf(entities.ErrInternal, "query titles error: %v", err)
 	}
@@ -238,27 +281,34 @@ func (s *PostgresStorage) GetAggregatedCoins(
 			cost     float64
 			actualAt time.Time
 		)
+
 		if err := rows.Scan(&title, &cost, &actualAt); err != nil {
+			span.SetError(err)
 			slog.Error("scan aggregated coin failed", "error", err)
 			return nil, errors.Wrapf(entities.ErrInternal, "scan error: %v", err)
 		}
 
 		coin, err := entities.NewCoin(title, cost, actualAt)
 		if err != nil {
+			span.SetError(err)
 			slog.Error("new coin failed", "error", err, "title", title, "cost", cost)
 			return nil, errors.Wrap(err, "new coin error")
 		}
+
 		coins = append(coins, coin)
 	}
 
 	if err := rows.Err(); err != nil {
+		span.SetError(err)
 		slog.Error("aggregated coin rows error", "error", err)
 		return nil, errors.Wrap(err, "collect rows error")
 	}
 
 	if len(coins) == 0 {
-		slog.Error("aggregated coins not found", "error", entities.ErrNotFound, "titles", titles, "aggregate", aggregate)
-		return nil, errors.Wrap(entities.ErrNotFound, "required titles not found")
+		err := errors.Wrap(entities.ErrNotFound, "required titles not found")
+		span.SetError(err)
+		slog.Error("aggregated coins not found", "error", err, "titles", titles, "aggregate", aggregate)
+		return nil, err
 	}
 
 	return coins, nil
