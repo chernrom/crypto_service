@@ -34,8 +34,8 @@ func NewService(provider CryptoProvider, storage Storage) (*Service, error) {
 }
 
 func (s *Service) ensureCoinsExist(ctx context.Context, titles []string) error {
-	ctx, span, cancelfn := tracing.Start(ctx, "ensureCoinsExist")
-	defer cancelfn()
+	ctx, span, cancel := tracing.Start(ctx, "Service.ensureCoinsExist")
+	defer cancel()
 
 	existingTitles, err := s.storage.GetAllTitles(ctx)
 	if err != nil {
@@ -60,6 +60,7 @@ func (s *Service) ensureCoinsExist(ctx context.Context, titles []string) error {
 	if len(missingTitles) > 0 {
 		missingCoins, err := s.provider.GetActualCoins(ctx, missingTitles)
 		if err != nil {
+			span.SetError(err)
 			slog.Error(
 				"get actual coins failed",
 				"error", err,
@@ -70,6 +71,7 @@ func (s *Service) ensureCoinsExist(ctx context.Context, titles []string) error {
 		}
 
 		if err := s.storage.Store(ctx, missingCoins); err != nil {
+			span.SetError(err)
 			slog.Error(
 				"store failed",
 				"error", err,
@@ -83,19 +85,26 @@ func (s *Service) ensureCoinsExist(ctx context.Context, titles []string) error {
 }
 
 func (s *Service) GetCoins(ctx context.Context, titles []string) ([]*entities.Coin, error) {
+	ctx, span, cancel := tracing.Start(ctx, "Service.GetCoins")
+	defer cancel()
+
 	if len(titles) == 0 {
+		err := errors.Wrap(entities.ErrInvalidParam, "titles is empty")
+		span.SetError(err)
 		slog.Error("titles is empty", "error", entities.ErrInvalidParam)
 		return nil, errors.Wrap(entities.ErrInvalidParam, "titles is empty")
 	}
 
 	err := s.ensureCoinsExist(ctx, titles)
 	if err != nil {
+		span.SetError(err)
 		slog.Error("ensure coins exist failed", "error", err, "titles", titles)
 		return nil, errors.Wrap(err, "ensure coins exist failure")
 	}
 
 	coins, err := s.storage.GetCoinsByTitles(ctx, titles)
 	if err != nil {
+		span.SetError(err)
 		slog.Error(
 			"get coins by titles failed",
 			"error", err,
@@ -112,7 +121,12 @@ func (s *Service) GetAggregatedCoins(
 	ctx context.Context,
 	titles []string,
 	aggregate entities.Aggregate) ([]*entities.Coin, error) {
+	ctx, span, cancel := tracing.Start(ctx, "Service.GetAggregatedCoins")
+	defer cancel()
+
 	if len(titles) == 0 {
+		err := errors.Wrap(entities.ErrInvalidParam, "titles is empty")
+		span.SetError(err)
 		slog.Error("titles is empty", "error", entities.ErrInvalidParam)
 		return nil, errors.Wrap(entities.ErrInvalidParam, "titles is empty")
 	}
@@ -120,17 +134,22 @@ func (s *Service) GetAggregatedCoins(
 	if aggregate != entities.AggregateAvg &&
 		aggregate != entities.AggregateMin &&
 		aggregate != entities.AggregateMax {
-		return nil, errors.Wrap(entities.ErrInvalidParam, "invalid aggregation type")
+		err := errors.Wrap(entities.ErrInvalidParam, "invalid aggregation type")
+		span.SetError(err)
+		slog.Error("invalid aggregation type", "error", err, "aggregate", aggregate)
+		return nil, err
 	}
 
 	err := s.ensureCoinsExist(ctx, titles)
 	if err != nil {
+		span.SetError(err)
 		slog.Error("ensure coins exist failed", "error", err, "titles", titles, "aggregate", aggregate)
 		return nil, errors.Wrap(err, "ensure coins exist failure")
 	}
 
 	aggregatedCoins, err := s.storage.GetAggregatedCoins(ctx, titles, aggregate)
 	if err != nil {
+		span.SetError(err)
 		slog.Error(
 			"get aggregated coins failed",
 			"error", err,
@@ -145,8 +164,12 @@ func (s *Service) GetAggregatedCoins(
 }
 
 func (s *Service) ActualizeCoins(ctx context.Context) error {
+	ctx, span, cancel := tracing.Start(ctx, "Service.ActualizeCoins")
+	defer cancel()
+
 	titles, err := s.storage.GetAllTitles(ctx)
 	if err != nil {
+		span.SetError(err)
 		slog.Error("get all titles failed", "error", err)
 		return errors.Wrap(err, "get all titles failure")
 	}
@@ -158,11 +181,13 @@ func (s *Service) ActualizeCoins(ctx context.Context) error {
 
 	actualCoins, err := s.provider.GetActualCoins(ctx, titles)
 	if err != nil {
+		span.SetError(err)
 		slog.Error("get actual coins failed", "error", err, "titles", titles)
 		return errors.Wrap(err, "get actual coins failure")
 	}
 
 	if err := s.storage.Store(ctx, actualCoins); err != nil {
+		span.SetError(err)
 		slog.Error(
 			"store failed",
 			"error", err,
