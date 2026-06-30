@@ -87,8 +87,8 @@ func NewClient(apiToken string, opts ...ClientOption) (*Client, error) {
 }
 
 func (c *Client) GetActualCoins(ctx context.Context, titles []string) ([]*entities.Coin, error) {
-	ctx, span, cancelFn := tracing.Start(ctx, "Provider.CoinGecko.GetActualCoins")
-	defer cancelFn()
+	ctx, span, cancel := tracing.Start(ctx, "Provider.CoinGecko.GetActualCoins")
+	defer cancel()
 
 	if len(titles) == 0 {
 		err := errors.Wrap(entities.ErrInvalidParam, "titles is empty")
@@ -128,6 +128,7 @@ func (c *Client) GetActualCoins(ctx context.Context, titles []string) ([]*entiti
 	coins, err := c.parseCoins(response.Body)
 	if err != nil {
 		span.SetError(err)
+		slog.Error("parse coins failed", "error", err)
 		return nil, err
 	}
 
@@ -206,8 +207,9 @@ func (c *Client) buildRequest(ctx context.Context, urlRaw *url.URL) (*http.Reque
 }
 
 func (c *Client) doRequest(ctx context.Context, request *http.Request) (*http.Response, error) {
-	ctx, span, cancelFn := tracing.Start(ctx, "Provider.CoinGecko.DoRequest")
-	defer cancelFn()
+	ctx, span, cancel := tracing.Start(ctx, "Provider.CoinGecko.DoRequest")
+	defer cancel()
+	request = request.WithContext(ctx)
 
 	if request == nil {
 		err := errors.Wrap(entities.ErrInvalidParam, "request is nil")
@@ -216,7 +218,12 @@ func (c *Client) doRequest(ctx context.Context, request *http.Request) (*http.Re
 		return nil, err
 	}
 
-	request = request.WithContext(ctx)
+	if request.URL == nil {
+		err := errors.Wrap(entities.ErrInvalidParam, "request url is nil")
+		span.SetError(err)
+		slog.Error("request url is nil", "error", err)
+		return nil, err
+	}
 
 	response, err := c.Do(request)
 	if err != nil {
