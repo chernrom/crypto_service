@@ -16,3 +16,6 @@ cron:
   actualize:
     interval: 5m
     timeout: 3s
+tracing:
+  jaeger: jaeger:4318
+  switch_on: true
