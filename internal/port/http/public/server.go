@@ -68,6 +68,7 @@ func (s *Server) Start() error {
 			slog.Error("server stopped", "error", err)
 		}
 	}()
+
 	return nil
 }
 
@@ -82,10 +83,11 @@ func (s *Server) Stop(ctx context.Context) error {
 func (s *Server) registerRoutes() {
 	router := chi.NewRouter()
 
-	router.Use(s.tracingMiddleware)
 	router.Use(s.timeoutMiddleware)
+
 	router.Post(fmt.Sprintf("%s%s", basePath, ratesPath), s.actualRates)
 	router.Post(fmt.Sprintf("%s%s%s", basePath, ratesPath, aggregatedPath), s.aggregatedRates)
+
 	s.router.Handler = router
 }
 
@@ -100,9 +102,8 @@ func (s *Server) registerRoutes() {
 // @Failure      500  {object}  dto.ErrorDTO
 // @Router       /rates [post]
 func (s *Server) actualRates(resp http.ResponseWriter, req *http.Request) {
-	ctx, span, cancelFn := tracing.Start(req.Context(), "Handler.ActualRates")
-	defer cancelFn()
-	req = req.WithContext(ctx)
+	ctx, span, cancel := tracing.Start(req.Context(), "actualRatesHandler")
+	defer cancel()
 
 	slog.Info("requested actual rates")
 
@@ -110,25 +111,17 @@ func (s *Server) actualRates(resp http.ResponseWriter, req *http.Request) {
 
 	var titlesDTO dto.TitlesDTO
 	err := json.NewDecoder(req.Body).Decode(&titlesDTO)
-
 	if err != nil {
+		err := errors.Wrapf(entities.ErrInternal, "decode body failure: %v", err)
 		span.SetError(err)
-		slog.Error("failed to decode request body", "error", err)
-
-		wrappedErr := errors.Wrapf(
-			entities.ErrInvalidParam,
-			"failed to decode request body: %v",
-			err,
-		)
-
-		s.errProcessing(wrappedErr, resp)
+		s.errProcessing(err, resp)
 		return
 	}
 
-	coins, err := s.service.GetCoins(req.Context(), titlesDTO.Titles)
+	coins, err := s.service.GetCoins(ctx, titlesDTO.Titles)
 	if err != nil {
+		err := errors.Wrap(err, "get actual rates failed")
 		span.SetError(err)
-		slog.Error("get coins failed", "error", err)
 		s.errProcessing(err, resp)
 		return
 	}
@@ -148,11 +141,9 @@ func (s *Server) actualRates(resp http.ResponseWriter, req *http.Request) {
 // @Failure      500  {object}  dto.ErrorDTO
 // @Router       /rates/aggregated [post]
 func (s *Server) aggregatedRates(resp http.ResponseWriter, req *http.Request) {
-	ctx, span, cancelFn := tracing.Start(req.Context(), "Handler.AggregatedRates")
-	defer cancelFn()
-	req = req.WithContext(ctx)
-
 	slog.Info("requested aggregated rates")
+	ctx, span, cancel := tracing.Start(req.Context(), "aggregatedRatesHandler")
+	defer cancel()
 
 	resp.Header().Set("Content-Type", "application/json")
 
@@ -168,20 +159,13 @@ func (s *Server) aggregatedRates(resp http.ResponseWriter, req *http.Request) {
 	var titlesDTO dto.TitlesDTO
 	err = json.NewDecoder(req.Body).Decode(&titlesDTO)
 	if err != nil {
+		err := errors.Wrapf(entities.ErrInternal, "decode body failure: %v", err)
 		span.SetError(err)
-		slog.Error("failed to decode request body", "error", err)
-
-		wrappedErr := errors.Wrapf(
-			entities.ErrInvalidParam,
-			"failed to decode request body: %v",
-			err,
-		)
-
-		s.errProcessing(wrappedErr, resp)
+		s.errProcessing(err, resp)
 		return
 	}
 
-	coins, err := s.service.GetAggregatedCoins(req.Context(), titlesDTO.Titles, parsedAggregate)
+	coins, err := s.service.GetAggregatedCoins(ctx, titlesDTO.Titles, parsedAggregate)
 	if err != nil {
 		span.SetError(err)
 		slog.Error("failed to get aggregated coins", "error", err)
@@ -202,6 +186,7 @@ func (s *Server) coinsProcessing(coins []*entities.Coin, resp http.ResponseWrite
 			slog.Error("coin is nil", "index", i)
 			continue
 		}
+
 		coinsDTO.Coins = append(coinsDTO.Coins, dto.CoinDTO{
 			Title:    coin.Title(),
 			Cost:     coin.Cost(),
@@ -247,11 +232,11 @@ func (s *Server) timeoutMiddleware(next http.Handler) http.Handler {
 }
 
 func (s *Server) errProcessing(err error, resp http.ResponseWriter) {
-	statusCode := http.StatusInternalServerError
 	errDTO := dto.ErrorDTO{
 		Message:    err.Error(),
-		StatusCode: statusCode,
+		StatusCode: http.StatusInternalServerError,
 	}
+
 	switch {
 	case errors.Is(err, entities.ErrInternal):
 		errDTO.StatusCode = http.StatusInternalServerError
@@ -265,26 +250,11 @@ func (s *Server) errProcessing(err error, resp http.ResponseWriter) {
 
 	data, err := json.Marshal(&errDTO)
 	if err != nil {
-		slog.Error("failed to marshal error response", "error", err)
-		resp.WriteHeader(http.StatusInternalServerError)
+		err := errors.Wrapf(entities.ErrInternal, "marshal failure: %v", err)
+		slog.Error("marshalling failure", "err", err)
 		return
 	}
 
 	resp.WriteHeader(errDTO.StatusCode)
-	if _, err := resp.Write(data); err != nil {
-		slog.Error("failed to write response", "error", err)
-		return
-	}
-}
-
-func (s *Server) tracingMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
-		name := fmt.Sprintf("HTTP %s %s", req.Method, req.URL.Path)
-
-		ctx, _, cancelFn := tracing.Start(req.Context(), name)
-		defer cancelFn()
-
-		req = req.WithContext(ctx)
-		next.ServeHTTP(resp, req)
-	})
+	resp.Write(data)
 }

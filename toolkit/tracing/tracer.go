@@ -42,6 +42,7 @@ func Start(ctx context.Context, name string) (context.Context, *Span, func()) {
 			otelSpan.End()
 		}
 	}
+
 	return ctx, &Span{otelSpan: trace.SpanFromContext(ctx)}, func() {}
 }
 
@@ -51,13 +52,16 @@ func StartTracer(ctx context.Context, serviceName, serviceVersion, endpoint stri
 	if err != nil {
 		return nil, err
 	}
+
 	res, err := resource.New(ctx, resource.WithAttributes(semconv.ServiceName(serviceName), semconv.ServiceVersion(serviceVersion)))
 	if err != nil {
 		return nil, err
 	}
+
 	telemetryProvider := sdktrace.NewTracerProvider(sdktrace.WithBatcher(exporter), sdktrace.WithResource(res))
 	otel.SetTracerProvider(telemetryProvider)
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
+	
 	return telemetryProvider.Shutdown, nil
 }
 
