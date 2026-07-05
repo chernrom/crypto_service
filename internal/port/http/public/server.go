@@ -112,16 +112,20 @@ func (s *Server) actualRates(resp http.ResponseWriter, req *http.Request) {
 	var titlesDTO dto.TitlesDTO
 	err := json.NewDecoder(req.Body).Decode(&titlesDTO)
 	if err != nil {
-		err := errors.Wrapf(entities.ErrInternal, "decode body failure: %v", err)
-		span.SetError(err)
-		s.errProcessing(err, resp)
+		wrappedErr := errors.Wrap(entities.ErrInvalidParam, "decode body failure")
+		span.SetError(wrappedErr)
+		s.errProcessing(wrappedErr, resp)
 		return
 	}
 
 	coins, err := s.service.GetCoins(ctx, titlesDTO.Titles)
 	if err != nil {
-		err := errors.Wrap(err, "get actual rates failed")
 		span.SetError(err)
+
+		if errors.Is(err, entities.ErrInternal) {
+			slog.Error("failed to get actual rates", "error", err)
+		}
+
 		s.errProcessing(err, resp)
 		return
 	}
@@ -159,9 +163,9 @@ func (s *Server) aggregatedRates(resp http.ResponseWriter, req *http.Request) {
 	var titlesDTO dto.TitlesDTO
 	err = json.NewDecoder(req.Body).Decode(&titlesDTO)
 	if err != nil {
-		err := errors.Wrapf(entities.ErrInternal, "decode body failure: %v", err)
-		span.SetError(err)
-		s.errProcessing(err, resp)
+		wrappedErr := errors.Wrap(entities.ErrInvalidParam, "decode body failure")
+		span.SetError(wrappedErr)
+		s.errProcessing(wrappedErr, resp)
 		return
 	}
 
@@ -183,8 +187,11 @@ func (s *Server) coinsProcessing(coins []*entities.Coin, resp http.ResponseWrite
 
 	for i, coin := range coins {
 		if coin == nil {
-			slog.Error("coin is nil", "index", i)
-			continue
+			err := errors.Wrapf(entities.ErrInternal, "coin is nil at index %d", i)
+			span.SetError(err)
+			slog.Error("failed to build coins response", "error", err)
+			resp.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 
 		coinsDTO.Coins = append(coinsDTO.Coins, dto.CoinDTO{
@@ -240,18 +247,23 @@ func (s *Server) errProcessing(err error, resp http.ResponseWriter) {
 	switch {
 	case errors.Is(err, entities.ErrInternal):
 		errDTO.StatusCode = http.StatusInternalServerError
+		errDTO.Message = "internal server error"
 	case errors.Is(err, entities.ErrNotFound):
 		errDTO.StatusCode = http.StatusNotFound
+		errDTO.Message = "not found"
 	case errors.Is(err, entities.ErrInvalidParam):
 		errDTO.StatusCode = http.StatusBadRequest
+		errDTO.Message = "invalid request"
 	default:
 		errDTO.StatusCode = http.StatusInternalServerError
+		errDTO.Message = "internal server error"
 	}
 
 	data, err := json.Marshal(&errDTO)
 	if err != nil {
-		err := errors.Wrapf(entities.ErrInternal, "marshal failure: %v", err)
+		wrappedErr := errors.Wrap(entities.ErrInvalidParam, "marshal failure")
 		slog.Error("marshalling failure", "err", err)
+		s.errProcessing(wrappedErr, resp)
 		return
 	}
 

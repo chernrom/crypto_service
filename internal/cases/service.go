@@ -40,12 +40,6 @@ func (s *Service) ensureCoinsExist(ctx context.Context, titles []string) error {
 	existingTitles, err := s.storage.GetAllTitles(ctx)
 	if err != nil {
 		span.SetError(err)
-		slog.Error(
-			"get all titles failed",
-			"error", err,
-			"titles", titles,
-		)
-
 		return errors.Wrap(err, "get all titles failure")
 	}
 
@@ -61,23 +55,11 @@ func (s *Service) ensureCoinsExist(ctx context.Context, titles []string) error {
 		missingCoins, err := s.provider.GetActualCoins(ctx, missingTitles)
 		if err != nil {
 			span.SetError(err)
-			slog.Error(
-				"get actual coins failed",
-				"error", err,
-				"titles", missingTitles,
-			)
-
 			return errors.Wrap(err, "get actual rates failure")
 		}
 
 		if err := s.storage.Store(ctx, missingCoins); err != nil {
 			span.SetError(err)
-			slog.Error(
-				"store failed",
-				"error", err,
-				"coins", missingCoins,
-			)
-
 			return errors.Wrap(err, "store failure")
 		}
 	}
@@ -91,26 +73,18 @@ func (s *Service) GetCoins(ctx context.Context, titles []string) ([]*entities.Co
 	if len(titles) == 0 {
 		err := errors.Wrap(entities.ErrInvalidParam, "titles is empty")
 		span.SetError(err)
-		slog.Error("titles is empty", "error", entities.ErrInvalidParam)
-		return nil, errors.Wrap(entities.ErrInvalidParam, "titles is empty")
+		return nil, err
 	}
 
 	err := s.ensureCoinsExist(ctx, titles)
 	if err != nil {
 		span.SetError(err)
-		slog.Error("ensure coins exist failed", "error", err, "titles", titles)
 		return nil, errors.Wrap(err, "ensure coins exist failure")
 	}
 
 	coins, err := s.storage.GetCoinsByTitles(ctx, titles)
 	if err != nil {
 		span.SetError(err)
-		slog.Error(
-			"get coins by titles failed",
-			"error", err,
-			"titles", titles,
-		)
-
 		return nil, errors.Wrap(err, "get last coins failure")
 	}
 
@@ -127,8 +101,7 @@ func (s *Service) GetAggregatedCoins(
 	if len(titles) == 0 {
 		err := errors.Wrap(entities.ErrInvalidParam, "titles is empty")
 		span.SetError(err)
-		slog.Error("titles is empty", "error", entities.ErrInvalidParam)
-		return nil, errors.Wrap(entities.ErrInvalidParam, "titles is empty")
+		return nil, err
 	}
 
 	if aggregate != entities.AggregateAvg &&
@@ -143,20 +116,12 @@ func (s *Service) GetAggregatedCoins(
 	err := s.ensureCoinsExist(ctx, titles)
 	if err != nil {
 		span.SetError(err)
-		slog.Error("ensure coins exist failed", "error", err, "titles", titles, "aggregate", aggregate)
 		return nil, errors.Wrap(err, "ensure coins exist failure")
 	}
 
 	aggregatedCoins, err := s.storage.GetAggregatedCoins(ctx, titles, aggregate)
 	if err != nil {
 		span.SetError(err)
-		slog.Error(
-			"get aggregated coins failed",
-			"error", err,
-			"titles", titles,
-			"aggregate", aggregate,
-		)
-
 		return nil, errors.Wrap(err, "get aggregated coins failure")
 	}
 
@@ -170,30 +135,23 @@ func (s *Service) ActualizeCoins(ctx context.Context) error {
 	titles, err := s.storage.GetAllTitles(ctx)
 	if err != nil {
 		span.SetError(err)
-		slog.Error("get all titles failed", "error", err)
 		return errors.Wrap(err, "get all titles failure")
 	}
 
 	if len(titles) == 0 {
-		slog.Info("no titles to actualize")
+		err := errors.Wrap(entities.ErrInvalidParam, "no titles to actualize")
+		span.SetError(err)
 		return nil
 	}
 
 	actualCoins, err := s.provider.GetActualCoins(ctx, titles)
 	if err != nil {
 		span.SetError(err)
-		slog.Error("get actual coins failed", "error", err, "titles", titles)
 		return errors.Wrap(err, "get actual coins failure")
 	}
 
 	if err := s.storage.Store(ctx, actualCoins); err != nil {
 		span.SetError(err)
-		slog.Error(
-			"store failed",
-			"error", err,
-			"coins", actualCoins,
-		)
-
 		return errors.Wrap(err, "store failure")
 	}
 

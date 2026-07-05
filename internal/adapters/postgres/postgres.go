@@ -190,22 +190,23 @@ func (s *PostgresStorage) GetCoinsByTitles(ctx context.Context, titles []string)
 	rows, err := s.pool.Query(ctx, query, titles)
 	if err != nil {
 		span.SetError(err)
-		slog.Error("query coins by titles failed", "error", err, "titles", titles)
-		return nil, errors.Wrapf(entities.ErrInternal, "query titles error: %v", err)
+		return nil, errors.Wrapf(
+			entities.ErrInternal,
+			"query coins by titles: %v",
+			err,
+		)
 	}
 	defer rows.Close()
 
 	dtoList, err := pgx.CollectRows(rows, pgx.RowToAddrOfStructByName[CoinRowDTO])
 	if err != nil {
 		span.SetError(err)
-		slog.Error("collect coin rows failed", "error", err, "titles", titles)
 		return nil, errors.Wrap(err, "collect rows error")
 	}
 
 	if len(dtoList) == 0 {
 		err := errors.Wrap(entities.ErrNotFound, "coins not found")
 		span.SetError(err)
-		slog.Error("coins not found", "error", err, "titles", titles)
 		return nil, err
 	}
 
@@ -252,7 +253,11 @@ func (s *PostgresStorage) GetAggregatedCoins(
 	case min, max, avg:
 		aggFunc = strings.ToUpper(string(aggregate))
 	default:
-		err := errors.Wrapf(entities.ErrInvalidParam, "invalid aggregation type: %v", aggregate)
+		err := errors.Wrapf(
+			entities.ErrInvalidParam,
+			"invalid aggregation type: %q",
+			aggregate,
+		)
 		span.SetError(err)
 		slog.Error("invalid aggregation type", "error", err, "aggregate", aggregate)
 		return nil, err
