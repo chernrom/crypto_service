@@ -42,29 +42,50 @@ func (c *CachedService) ActualizeCoins(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	c.cache.Flush(ctx)
+
+	if err := c.cache.Invalidate(ctx); err != nil {
+		slog.Error("cache invalidation error", "err", err)
+	}
 	return nil
 }
 
-func (c *CachedService) GetAggregatedCoins(ctx context.Context, titles []string, aggregate entities.Aggregate) ([]*entities.Coin, error) {
-	coins, err := c.cache.GetCoins(ctx, "get_aggregated_coins"+string(aggregate), titles)
+func (c *CachedService) GetAggregatedCoins(
+	ctx context.Context,
+	titles []string,
+	aggregate entities.Aggregate,
+) ([]*entities.Coin, error) {
+
+	cacheTitles := normalizeTitles(titles)
+	cacheKey := getAggregatedCoinsOperation +
+		":" + string(aggregate) +
+		":" + strings.Join(cacheTitles, ":")
+
+	coins, err := c.cache.GetCoins(ctx, cacheKey)
 	if err != nil {
-		slog.Error("cache error", "err", err)
+		slog.Error("get cached coins failed", "error", err)
 	}
+
 	if coins != nil {
 		return coins, nil
 	}
 
 	savedCoins, err := c.service.GetAggregatedCoins(ctx, titles, aggregate)
 	if err != nil {
+		slog.Error("get aggregated coins from service failed", "error", err)
 		return nil, err
 	}
-	c.cache.Store(ctx, "get_aggregated_coins"+string(aggregate), strings.Join(titles, ":"), savedCoins)
+
+	if err := c.cache.SetCoins(ctx, cacheKey, savedCoins); err != nil {
+		slog.Error("store aggregated coins in cache failed", "error", err)
+	}
 
 	return savedCoins, nil
 }
 
-func (c *CachedService) GetCoins(ctx context.Context, titles []string) ([]*entities.Coin, error) {
+func (c *CachedService) GetCoins(
+	ctx context.Context,
+	titles []string,
+) ([]*entities.Coin, error) {
 	if len(titles) == 0 {
 		err := errors.Wrap(entities.ErrInvalidParam, "titles is empty")
 		slog.Error("get cached coins failed", "error", err)
@@ -73,44 +94,29 @@ func (c *CachedService) GetCoins(ctx context.Context, titles []string) ([]*entit
 
 	cacheTitles := normalizeTitles(titles)
 
-	coins, err := c.cache.GetCoins(
-		ctx,
-		getCoinsOperation,
-		cacheTitles,
-	)
+	cacheKey := getCoinsOperation +
+		":" + strings.Join(cacheTitles, ":")
+
+	coins, err := c.cache.GetCoins(ctx, cacheKey)
 	if err != nil {
-		// Redis не должен ломать основной запрос.
-		slog.Error(
-			"get coins from cache failed",
-			"error", err,
-			"titles", cacheTitles,
-		)
+		slog.Error("get cached coins failed", "error", err)
 	}
+
 	if coins != nil {
 		return coins, nil
 	}
 
-	coins, err = c.service.GetCoins(ctx, titles)
+	savedCoins, err := c.service.GetCoins(ctx, titles)
 	if err != nil {
+		slog.Error("get coins from service failed", "error", err)
 		return nil, err
 	}
 
-	cacheKey := strings.Join(cacheTitles, ":")
-
-	if err := c.cache.Store(
-		ctx,
-		getCoinsOperation,
-		cacheKey,
-		coins,
-	); err != nil {
-		slog.Error(
-			"store coins in cache failed",
-			"error", err,
-			"titles", cacheTitles,
-		)
+	if err := c.cache.SetCoins(ctx, cacheKey, savedCoins); err != nil {
+		slog.Error("store coins in cache failed", "error", err)
 	}
 
-	return coins, nil
+	return savedCoins, nil
 }
 
 func normalizeTitles(titles []string) []string {

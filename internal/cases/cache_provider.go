@@ -6,7 +6,7 @@ import (
 )
 
 type CacheProvider interface {
-	Store(ctx context.Context, operationType string, key string, value any) error
-	GetCoins(ctx context.Context, operationType string, titles []string) ([]*entities.Coin, error)
-	Flush(ctx context.Context) error
+	GetCoins(ctx context.Context, key string) ([]*entities.Coin, error)
+	SetCoins(ctx context.Context, key string, coins []*entities.Coin) error
+	Invalidate(ctx context.Context) error
 }

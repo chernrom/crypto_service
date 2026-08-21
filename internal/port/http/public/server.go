@@ -33,7 +33,7 @@ const (
 )
 
 type Server struct {
-	router  *http.Server
+	server  *http.Server
 	service port.ServiceProvider
 }
 
@@ -51,7 +51,7 @@ func NewServer(service port.ServiceProvider, port string, timeout time.Duration)
 	}
 
 	return &Server{
-		router: &http.Server{
+		server: &http.Server{
 			ReadTimeout:  timeout,
 			WriteTimeout: timeout,
 			Addr:         fmt.Sprintf(":%s", port),
@@ -64,7 +64,7 @@ func (s *Server) Start() error {
 	s.registerRoutes()
 
 	go func() {
-		if err := s.router.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if err := s.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("server stopped", "error", err)
 		}
 	}()
@@ -73,7 +73,7 @@ func (s *Server) Start() error {
 }
 
 func (s *Server) Stop(ctx context.Context) error {
-	if err := s.router.Shutdown(ctx); err != nil {
+	if err := s.server.Shutdown(ctx); err != nil {
 		slog.Error("server shutdown failed", "error", err)
 		return err
 	}
@@ -88,7 +88,7 @@ func (s *Server) registerRoutes() {
 	router.Post(fmt.Sprintf("%s%s", basePath, ratesPath), s.actualRates)
 	router.Post(fmt.Sprintf("%s%s%s", basePath, ratesPath, aggregatedPath), s.aggregatedRates)
 
-	s.router.Handler = router
+	s.server.Handler = router
 }
 
 // @Summary      Get actual coin rates
@@ -230,7 +230,7 @@ func parseAggregate(raw string) (entities.Aggregate, error) {
 
 func (s *Server) timeoutMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
-		ctx, cancel := context.WithTimeout(req.Context(), s.router.WriteTimeout)
+		ctx, cancel := context.WithTimeout(req.Context(), s.server.WriteTimeout)
 		defer cancel()
 		req = req.WithContext(ctx)
 		next.ServeHTTP(resp, req)
