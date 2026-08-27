@@ -6,20 +6,26 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
 
 type fakeCache struct {
-	coins          []*entities.Coin
-	setCoinsCalled bool
-	setCoins       []*entities.Coin
-	err            error
+	coins            []*entities.Coin
+	setCoinsCalled   bool
+	setCoins         []*entities.Coin
+	err              error
+	setErr           error
+	invalidateCalled bool
+	invalidateErr    error
 }
 
 type fakeService struct {
-	getCoinsCalled bool
-	coins          []*entities.Coin
-	err            error
+	getCoinsCalled       bool
+	coins                []*entities.Coin
+	err                  error
+	actualizeCoinsCalled bool
+	actualizeErr         error
 }
 
 func (f *fakeService) GetCoins(
@@ -44,11 +50,12 @@ func (f *fakeCache) SetCoins(
 ) error {
 	f.setCoinsCalled = true
 	f.setCoins = coins
-	return nil
+	return f.setErr
 }
 
 func (f *fakeCache) Invalidate(ctx context.Context) error {
-	return nil
+	f.invalidateCalled = true
+	return f.invalidateErr
 }
 
 func (f *fakeService) GetAggregatedCoins(
@@ -60,7 +67,8 @@ func (f *fakeService) GetAggregatedCoins(
 }
 
 func (f *fakeService) ActualizeCoins(ctx context.Context) error {
-	return nil
+	f.actualizeCoinsCalled = true
+	return f.actualizeErr
 }
 
 func TestCachedService_GetCoins(t *testing.T) {
@@ -75,6 +83,8 @@ func TestCachedService_GetCoins(t *testing.T) {
 		wantSetCoins       []*entities.Coin
 		wantServiceCalled  bool
 		wantSetCoinsCalled bool
+		cacheErr           error
+		setErr             error
 	}{
 		{
 			name:               "cache hit",
@@ -93,6 +103,27 @@ func TestCachedService_GetCoins(t *testing.T) {
 			wantServiceCalled:  true,
 			wantSetCoinsCalled: true,
 		},
+		{
+			name:               "cache err",
+			cacheCoins:         nil,
+			serviceCoins:       []*entities.Coin{btc},
+			wantCoins:          []*entities.Coin{btc},
+			wantSetCoins:       []*entities.Coin{btc},
+			wantServiceCalled:  true,
+			wantSetCoinsCalled: true,
+			cacheErr:           errors.New("cache unavailable"),
+		},
+		{
+			name:               "set cache err",
+			cacheCoins:         nil,
+			serviceCoins:       []*entities.Coin{btc},
+			wantCoins:          []*entities.Coin{btc},
+			wantSetCoins:       []*entities.Coin{btc},
+			wantServiceCalled:  true,
+			wantSetCoinsCalled: true,
+			cacheErr:           nil,
+			setErr:             errors.New("cache is broken"),
+		},
 	}
 
 	for _, tc := range tests {
@@ -100,7 +131,9 @@ func TestCachedService_GetCoins(t *testing.T) {
 			t.Parallel()
 
 			cache := &fakeCache{
-				coins: tc.cacheCoins,
+				coins:  tc.cacheCoins,
+				err:    tc.cacheErr,
+				setErr: tc.setErr,
 			}
 
 			service := &fakeService{
