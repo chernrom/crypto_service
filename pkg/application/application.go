@@ -63,6 +63,7 @@ func (app *App) startAndAwait() {
 	if err := app.startHTTPPublic(); err != nil {
 		app.panic(err)
 	}
+	
 	slog.Info("public http port started")
 	osMon := make(chan os.Signal, 1)
 	signal.Notify(osMon, syscall.SIGINT, syscall.SIGTERM)
